@@ -1,0 +1,52 @@
+name: Commit CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - '*'
+    tags:
+      - '![0-9]+.*'
+    paths:
+      - '**/**'
+      - '!*.md'
+      - '!.gitignore'
+  pull_request:
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout last commit
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Add msbuild to PATH
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Build rimeac.lua
+        run: |
+          .\deps.install.bat
+          .\build_vc.bat
+
+      - name: Compress dists
+        run: |
+          del dist\.placeholder
+          del dist64\.placeholder
+          move dist rimeac.lua.x86
+          move dist64 rimeac.lua.x64
+          7z.exe a -t7z rime.ac.lua.x86.7z rimeac.lua.x86\*
+          7z.exe a -t7z rime.ac.lua.x64.7z rimeac.lua.x64\*
+
+      # create nightly release
+      - name: Create Nightly release
+        uses: 'marvinpinto/action-automatic-releases@latest'
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          automatic_release_tag: latest
+          prerelease: true
+          title: "Nightly Build"
+          files: |
+            ./rimeac.lua.x86.7z
+            ./rimeac.lua.x64.7z
