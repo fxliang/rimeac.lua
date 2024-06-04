@@ -177,12 +177,13 @@ void finalize_rime() {
     rime = rime_get_api();
   rime->finalize();
 }
-void simulate_keys(const char* keys) {
+bool simulate_keys(const char* keys) {
   if (!rime) {
     fprintf(stderr, "Please init rime first!\n");
-    return;
+    return false;
   }
-  rime->simulate_key_sequence(current_session, keys);
+  printf("simulate keys on session: %p, %s\n", (void*)current_session, keys);
+  return rime->simulate_key_sequence(current_session, keys);
 }
 bool select_schema(const char* schema_id) {
   if (!rime) {
@@ -242,19 +243,26 @@ void destroy_sessions() {
     printf("destroy session: %p\n", (void*)s.second);
     rime->destroy_session(s.second);
   }
+  sessions_map.clear();
 }
 void kill_session(int id) {
   if (!rime) {
     fprintf(stderr, "Please init rime first!\n");
     return;
   }
-  if (sessions_map.find(id) == sessions_map.end()) {
+  auto it = sessions_map.find(id);
+  if (it == sessions_map.end()) {
     fprintf(stderr, "no session by this index!\n");
     return;
   }
+  if (it != sessions_map.begin())
+    it--;
+  else
+    it++;
   printf("destroy session: %p\n", (void*)sessions_map[id]);
   rime->destroy_session(sessions_map[id]);
   sessions_map.erase(id);
+  current_session = it->second;
 }
 RimeSessionId get_session(int index) {
   if (sessions_map.find(index) != sessions_map.end())
@@ -315,6 +323,5 @@ int main(int argc, char* argv[]){
   luaL_dofile(L, "script.lua");
   // --------------------------------------------------------------------------
   finalize_env();
-  system("pause");
   return 0;
 }
