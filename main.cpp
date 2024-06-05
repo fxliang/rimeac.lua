@@ -265,7 +265,9 @@ void kill_session(int id) {
   current_session = it->second;
 }
 RimeSessionId get_session(int index) {
-  if (sessions_map.find(index) != sessions_map.end())
+  if (index == 0)
+    return current_session;
+  else if (sessions_map.find(index) != sessions_map.end())
     return (RimeSessionId)sessions_map[index];
   else
     return 0;
@@ -298,7 +300,7 @@ int main(int argc, char* argv[]){
   init_env();
   // --------------------------------------------------------------------------
   luabridge::getGlobalNamespace(L)
-    .beginNamespace("test")
+    .beginNamespace("rimeac")
     .addFunction("setup_rime", &setup_rime)
     .addFunction("init_rime", &init_rime)
     .addFunction("finalize_rime", &finalize_rime)
