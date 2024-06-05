@@ -36,17 +36,25 @@ jobs:
           del dist64\.placeholder
           move dist rimeac.lua.x86
           move dist64 rimeac.lua.x64
-          7z.exe a -t7z rime.ac.lua.x86.7z rimeac.lua.x86\*
-          7z.exe a -t7z rime.ac.lua.x64.7z rimeac.lua.x64\*
+          7z.exe a -t7z rimeac.lua.x86.7z rimeac.lua.x86\*
+          7z.exe a -t7z rimeac.lua.x64.7z rimeac.lua.x64\*
 
       # create nightly release
-      - name: Create Nightly release
-        uses: 'marvinpinto/action-automatic-releases@latest'
+      #- name: Create Nightly release
+      #  uses: 'marvinpinto/action-automatic-releases@latest'
+      #  with:
+      #    repo_token: ${{ secrets.GITHUB_TOKEN }}
+      #    automatic_release_tag: latest
+      #    prerelease: true
+      #    title: "Nightly Build"
+      #    files: |
+      #      ./rimeac.lua.x86.7z
+      #      ./rimeac.lua.x64.7z
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
         with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          automatic_release_tag: latest
-          prerelease: true
-          title: "Nightly Build"
-          files: |
-            ./rimeac.lua.x86.7z
-            ./rimeac.lua.x64.7z
+          if-no-files-found: error
+          path: |
+            .\rimeac.lua.x86.7z
+            .\rimeac.lua.x64.7z
