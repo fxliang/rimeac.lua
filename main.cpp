@@ -182,7 +182,7 @@ bool simulate_keys(const char* keys) {
     fprintf(stderr, "Please init rime first!\n");
     return false;
   }
-  printf("simulate keys on session: %p, %s\n", (void*)current_session, keys);
+  //printf("simulate keys on session: %p, %s\n", (void*)current_session, keys);
   return rime->simulate_key_sequence(current_session, keys);
 }
 bool select_schema(const char* schema_id) {
@@ -295,6 +295,34 @@ int get_index_of_session(RimeSessionId id) {
   return 0;
 }
 
+std::vector<std::string> get_candidates() {
+  std::vector<std::string> ret;
+  RIME_STRUCT(RimeContext, context);
+  if (rime->get_context(current_session, &context)) {
+    if(context.menu.num_candidates) {
+      for (int i = 0; i < context.menu.num_candidates; ++i) {
+        ret.push_back(context.menu.candidates[i].text);
+      }
+    }
+    rime->free_context(&context);
+  }
+  return ret;
+}
+std::vector<std::string> get_comments() {
+  std::vector<std::string> ret;
+  RIME_STRUCT(RimeContext, context);
+  if (rime->get_context(current_session, &context)) {
+    if(context.menu.num_candidates) {
+      for (int i = 0; i < context.menu.num_candidates; ++i) {
+        ret.push_back(context.menu.candidates[i].comment ?
+            context.menu.candidates[i].comment : "");
+      }
+    }
+    rime->free_context(&context);
+  }
+  return ret;
+}
+
 int main(int argc, char* argv[]){
   //printf("hello world in c++!\n");
   init_env();
@@ -313,6 +341,8 @@ int main(int argc, char* argv[]){
     .addFunction("get_session", &get_session)
     .addFunction("switch_session", &switch_session)
     // on current session
+    .addFunction("get_candidates", &get_candidates)
+    .addFunction("get_comments", &get_comments)
     .addFunction("print_session", &print_session)
     .addFunction("simulate_keys", &simulate_keys)
     .addFunction("select_schema", &select_schema)

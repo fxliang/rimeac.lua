@@ -61,6 +61,13 @@ rimeac.simulate_keys("jx")
 
 --- print current session, status, context, commit
 rimeac.print_session()
+-- get candidates and comments in lua
+local cands,cmds = rimeac.get_candidates(), rimeac.get_comments()
+if #cands then
+	for i, v in ipairs(cands) do
+		print(cands[i], cmds[i])
+	end
+end
 --- select candidate on current session, >= 0
 rimeac.select_candidate(2)
 rimeac.print_session()
