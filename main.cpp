@@ -267,7 +267,7 @@ void kill_session(int id) {
   sessions_map.erase(id);
   current_session = it->second;
 }
-RimeSessionId get_session(int index) {
+RimeSessionId get_session_c(int index) {
   if (index == 0)
     return current_session;
   else if (sessions_map.find(index) != sessions_map.end())
@@ -275,8 +275,15 @@ RimeSessionId get_session(int index) {
   else
     return 0;
 }
+
+int get_session(lua_State* L) {
+  lua_Integer index = luaL_checkinteger(L, 1);
+  auto id = get_session_c((int)index);
+  lua_pushinteger(L, (lua_Integer)id);
+  return 1;
+}
 bool switch_session(int index) {
-  RimeSessionId id = get_session(index);
+  RimeSessionId id = get_session_c(index);
   if (!id)
     return false;
   else
@@ -290,12 +297,19 @@ int get_index_of_current_session() {
   }
   return 0;
 }
-int get_index_of_session(RimeSessionId id) {
+int get_index_of_session_c(RimeSessionId id) {
   for(auto& p : sessions_map) {
     if(p.second == id)
       return p.first;
   }
   return 0;
+}
+
+int get_index_of_session(lua_State* L) {
+  lua_Integer id = luaL_checkinteger(L, 1);
+  auto idx = get_index_of_session_c((RimeSessionId)id);
+  lua_pushinteger(L, idx);
+  return 1;
 }
 
 std::vector<std::string> get_candidates() {
