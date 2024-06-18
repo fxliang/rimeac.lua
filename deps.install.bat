@@ -25,11 +25,3 @@ copy /Y librime_x64\dist\lib\rime.lib lib64\
 copy /Y librime_x64\dist\lib\rime.dll dist64\
 
 rmdir /s /q librime librime_x64
-
-rem exact lua
-if not exist lua-5.4.6.tar.gz (
-  curl -LO https://www.lua.org/ftp/lua-5.4.6.tar.gz
-)
-7z e -aoa lua-5.4.6.tar.gz
-7z x -aoa lua-5.4.6.tar
-del lua-5.4.6.tar

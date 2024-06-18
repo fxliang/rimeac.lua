@@ -57,7 +57,7 @@ print("specific session index: ", sidx)
 
 --- simulate key sequence to current session
 --- rimeac.simulate_keys(key_sequence)
-rimeac.simulate_keys("jx")
+rimeac.simulate_keys("ceshi")
 
 --- print current session, status, context, commit
 rimeac.print_session()
@@ -68,6 +68,10 @@ if #cands then
 		print(cands[i], cmds[i])
 	end
 end
+--- assert(cands[1] == '测试')
+--- follow line will fail
+--- assert(cands[2] == '测试')
+
 --- select candidate on current session, >= 0
 rimeac.select_candidate(2)
 rimeac.print_session()

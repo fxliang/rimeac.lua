@@ -1,7 +1,11 @@
 #ifndef _WIN32
 #include <lua5.4/lua.hpp>
 #else
-#include "include/lua.hpp"
+extern "C" {
+#include "include/lua.h"
+#include "include/lualib.h"
+#include "include/lauxlib.h"
+}
 #endif
 
 #include "include/LuaBridge/LuaBridge.h"
@@ -352,7 +356,12 @@ int main(int argc, char* argv[]){
     .addFunction("get_index_of_session", &get_index_of_session)
     .endNamespace();
   // --------------------------------------------------------------------------
-  luaL_dofile(L, "script.lua");
+  int st = luaL_dofile(L, "script.lua");
+  if (st) {
+    const char* error_msg = lua_tostring(L, -1);
+    printf("Error: %s\n", error_msg);
+    lua_pop(L, -1);
+  }
   // --------------------------------------------------------------------------
   finalize_env();
   return 0;

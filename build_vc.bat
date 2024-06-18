@@ -1,6 +1,6 @@
 rem @echo off
 set base_dir=%CD%
-set lua_dir=%base_dir%\lua-5.4.6
+set lua_dir=%base_dir%\lua-v5.4
 set lua_version=54
 set target=rimeac.lua
 
@@ -27,7 +27,6 @@ goto end
   :build_lua
     pushd %lua_dir%
     set LV=%lua_version%
-    cd src
     if exist *.o del *.o
     if exist *.obj del *.obj
     if exist *.exe del *.exe
@@ -37,20 +36,15 @@ goto end
     cl /O2 /W3 /c /DLUA_BUILD_AS_DLL l*.c
     del lua.obj luac.obj
     link /DLL /out:lua%LV%.dll l*.obj
-    cl /O2 /W3 /c /DLUA_BUILD_AS_DLL lua.c luac.c
-    link /out:lua.exe lua.obj lua%LV%.lib
-    del lua.obj
-    link /out:luac.exe l*.obj
     del *.o *.obj *.exp
     popd
-    copy /y %lua_dir%\src\lua.hpp %base_dir%\include\
-    copy /y %lua_dir%\src\lua.h %base_dir%\include\
-    copy /y %lua_dir%\src\luaconf.h %base_dir%\include\
-    copy /y %lua_dir%\src\lualib.h %base_dir%\include\
-    copy /y %lua_dir%\src\lauxlib.h %base_dir%\include\
+    copy /y %lua_dir%\lua.h %base_dir%\include\
+    copy /y %lua_dir%\luaconf.h %base_dir%\include\
+    copy /y %lua_dir%\lualib.h %base_dir%\include\
+    copy /y %lua_dir%\lauxlib.h %base_dir%\include\
 
-    copy /y %lua_dir%\src\lua54.dll %libdir%
-    copy /y %lua_dir%\src\lua54.lib %libdir%
+    copy /y %lua_dir%\lua54.dll %libdir%
+    copy /y %lua_dir%\lua54.lib %libdir%
 
   :skip_lua
     cl  /c /Zi /std:c++17 /EHsc /Iinclude main.cpp
