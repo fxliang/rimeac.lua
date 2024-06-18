@@ -2,14 +2,13 @@
 #include <lua5.4/lua.hpp>
 #else
 extern "C" {
-#include "include/lua.h"
-#include "include/lualib.h"
-#include "include/lauxlib.h"
+#include <lua.h>
+#include <lualib.h>
+#include <lauxlib.h>
 }
 #endif
 
-#include "include/LuaBridge/LuaBridge.h"
-#include <stdio.h>
+#include <LuaBridge/LuaBridge.h>
 #include <rime_api.h>
 #include <rime_levers_api.h>
 #include <filesystem>

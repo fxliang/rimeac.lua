@@ -1,17 +1,15 @@
-rem @echo off
+@echo off
 set base_dir=%CD%
 set lua_dir=%base_dir%\lua-v5.4
 set lua_version=54
 set target=rimeac.lua
 
-if not exist include\LuaBridge\LuaBridge.h (
-  xcopy /E /I LuaBridge3\Distribution\LuaBridge include\LuaBridge
-)
-
+rem build x64 and x86 version of rimeac.lua
 call :build x64 64
 call :build x86 32 
 goto end
 
+rem param %1 should be 32 / 64, to make x86 and x64
 :build
   call msvc-latest.bat %1
 
@@ -23,7 +21,6 @@ goto end
     set distdir=%base_dir%\dist%2
   )
 
-  if exist %libdir%\lua54.lib goto skip_lua
   :build_lua
     pushd %lua_dir%
     set LV=%lua_version%
@@ -35,20 +32,14 @@ goto end
     if exist *.exp del *.exp
     cl /O2 /W3 /c /DLUA_BUILD_AS_DLL l*.c
     del lua.obj luac.obj
-    link /DLL /out:lua%LV%.dll l*.obj
+    rem link /DLL /out:lua%LV%.dll l*.obj
+    lib /OUT:lua%LV%.lib l*.obj
     del *.o *.obj *.exp
     popd
-    copy /y %lua_dir%\lua.h %base_dir%\include\
-    copy /y %lua_dir%\luaconf.h %base_dir%\include\
-    copy /y %lua_dir%\lualib.h %base_dir%\include\
-    copy /y %lua_dir%\lauxlib.h %base_dir%\include\
-
-    copy /y %lua_dir%\lua54.dll %libdir%
-    copy /y %lua_dir%\lua54.lib %libdir%
 
   :skip_lua
-    cl  /c /Zi /std:c++17 /EHsc /Iinclude main.cpp
-    link /OUT:%target%.exe /PDB:%target%.pdb /LIBPATH:%libdir% rime.lib main.obj 
+    cl  /c /Zi /std:c++17 /EHsc /Iinclude /I%lua_dir% /I%base_dir%\LuaBridge3\Distribution main.cpp
+    link /OUT:%target%.exe /PDB:%target%.pdb /LIBPATH:%libdir% /LIBPATH:%lua_dir% rime.lib main.obj 
     move vc*.pdb %distdir%\%target%.pdb
     move %target%.exe %distdir%\
     copy /y script.lua %distdir%\

@@ -20,8 +20,10 @@ if not exist %download_archive_x64% (
 copy /Y librime\dist\include\rime_*.h include\
 copy /Y librime\dist\lib\rime.lib lib\
 copy /Y librime\dist\lib\rime.dll dist\
+copy /Y librime\dist\lib\rime.dll lib\
 
 copy /Y librime_x64\dist\lib\rime.lib lib64\
 copy /Y librime_x64\dist\lib\rime.dll dist64\
+copy /Y librime_x64\dist\lib\rime.dll lib64\
 
 rmdir /s /q librime librime_x64
