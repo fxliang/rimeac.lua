@@ -2,7 +2,7 @@
 
 rime api console with lua
 
-This is a mod of `rime_api_console` from [librime](https://github.com/rime/librime/tools/rime_api_console.cc), make it lua-embedded version. 
+This is a mod of `rime_api_console` from [librime](https://github.com/rime/librime/blob/master/tools/rime_api_console.cc), make it lua-embedded version. 
 
 You can write your own test process of testing works in `script.lua`, you can make loops and so on(maybe later more)
 
