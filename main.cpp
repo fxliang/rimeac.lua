@@ -202,6 +202,13 @@ void set_option(const char* option_name, bool value) {
   }
   rime->set_option(current_session, option_name, value);
 }
+bool get_option(const char* option_name) {
+  if (!rime) {
+    fprintf(stderr, "Please init rime first!\n");
+    return false;
+  }
+  return rime->get_option(current_session, option_name);
+}
 bool select_candidate(int index) {
   if (!rime) {
     fprintf(stderr, "Please init rime first!\n");
@@ -276,6 +283,7 @@ RimeSessionId get_session_c(int index) {
     return 0;
 }
 
+// without parameters in lua
 int get_session(lua_State* L) {
   lua_Integer index = luaL_checkinteger(L, 1);
   auto id = get_session_c((int)index);
@@ -297,19 +305,81 @@ int get_index_of_current_session() {
   }
   return 0;
 }
-int get_index_of_session_c(RimeSessionId id) {
+// with parameter session_id in lua
+int get_index_of_session(lua_State* L) {
+  lua_Integer id = luaL_checkinteger(L, 1);
+  lua_Integer idx = 0;
   for(auto& p : sessions_map) {
-    if(p.second == id)
-      return p.first;
+    if(p.second == id) {
+      idx = p.first;
+      break;
+    }   
   }
+  lua_pushinteger(L, idx);
+  return 1;
+}
+
+// with parameter session_id in lua
+int commit_composition_sid(lua_State* L) {
+  if (!rime) {
+    fprintf(stderr, "Please init rime first!\n");
+    return false;
+  }
+  lua_Integer sid = luaL_checkinteger(L, 1);
+  auto ret = rime->commit_composition(sid);
+  lua_pushboolean(L, ret);
+  return 1;
+}
+// with parameter session_id in lua
+int clear_composition_sid(lua_State* L) {
+  if (!rime) {
+    fprintf(stderr, "Please init rime first!\n");
+    return 0;
+  }
+  lua_Integer sid = luaL_checkinteger(L, 1);
+  rime->clear_composition(sid);
   return 0;
 }
 
-int get_index_of_session(lua_State* L) {
-  lua_Integer id = luaL_checkinteger(L, 1);
-  auto idx = get_index_of_session_c((RimeSessionId)id);
-  lua_pushinteger(L, idx);
+// with parameter session index in lua, or without parameters for current_session
+int commit_composition(lua_State* L) {
+  bool ret = false;
+  if (!rime) {
+    fprintf(stderr, "Please init rime first!\n");
+  } else {
+    int n = lua_gettop(L);
+    if (!n)
+      ret = rime->commit_composition(current_session);
+    else {
+      int idx = (int)luaL_checkinteger(L, 1);
+      auto id = get_session_c((int)idx);
+      if (id)
+        ret = rime->commit_composition((RimeSessionId)id);
+      else
+        printf("Error: specific index %d doesn't match any session.\n", idx);
+    }
+  }
+  lua_pushboolean(L, ret);
   return 1;
+}
+// with parameter session index in lua, or without parameters for current_session
+int clear_composition(lua_State* L) {
+  if (!rime) {
+    fprintf(stderr, "Please init rime first!\n");
+  } else {
+    int n = lua_gettop(L);
+    if (!n)
+      rime->clear_composition(current_session);
+    else {
+      int idx = (int)luaL_checkinteger(L, 1);
+      auto id = get_session_c((int)idx);
+      if (id)
+        rime->clear_composition((RimeSessionId)id);
+      else
+        printf("Error: specific index %d doesn't match any session.\n", idx);
+    }
+  }
+  return 0;
 }
 
 std::vector<std::string> get_candidates() {
@@ -357,6 +427,12 @@ int main(int argc, char* argv[]){
     .addFunction("kill_session", &kill_session)
     .addFunction("get_session", &get_session)
     .addFunction("switch_session", &switch_session)
+    // with one parameter: session id
+    .addFunction("commit_composition_sid", &commit_composition_sid)
+    .addFunction("clear_composition_sid", &clear_composition_sid)
+    // on current session if no parameters, or with one parameter: session index
+    .addFunction("commit_composition", &commit_composition)
+    .addFunction("clear_composition", &clear_composition)
     // on current session
     .addFunction("get_candidates", &get_candidates)
     .addFunction("get_comments", &get_comments)
@@ -365,6 +441,7 @@ int main(int argc, char* argv[]){
     .addFunction("select_schema", &select_schema)
     .addFunction("select_candidate", &select_candidate)
     .addFunction("set_option", &set_option)
+    .addFunction("get_option", &get_option)
     .addFunction("get_index_of_current_session", &get_index_of_current_session)
     .addFunction("get_index_of_session", &get_index_of_session)
     .endNamespace();

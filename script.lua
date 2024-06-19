@@ -46,6 +46,8 @@ rimeac.print_sessions()
 --- rimeac.set_option(option_name, bool value)
 rimeac.set_option("zh_simp", true)
 --- rimeac.set_option("zh_trad", false)
+local zh_trad = rimeac.get_option("zh_trad")
+print("zh_trad status: " .. tostring(zh_trad))
 
 --- get index of current session
 local cindex = rimeac.get_index_of_current_session()
@@ -57,9 +59,27 @@ print("specific session index: ", sidx)
 
 --- simulate key sequence to current session
 --- rimeac.simulate_keys(key_sequence)
+print("call commit_composition")
 rimeac.simulate_keys("ceshi")
+rimeac.print_session()
+rimeac.commit_composition(2)
+rimeac.print_session()
 
+print("call commit_composition_sid")
+rimeac.simulate_keys("ceshi")
+rimeac.print_session()
+local sid = rimeac.get_session(2)
+rimeac.commit_composition_sid(sid)
+rimeac.print_session()
+
+print("call clear_composition")
+rimeac.simulate_keys("ceshi")
 --- print current session, status, context, commit
+rimeac.print_session()
+rimeac.clear_composition()
+rimeac.print_session()
+print("simulate_keys again 'ceshi'")
+rimeac.simulate_keys("ceshi")
 rimeac.print_session()
 -- get candidates and comments in lua
 local cands,cmds = rimeac.get_candidates(), rimeac.get_comments()
