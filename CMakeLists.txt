@@ -31,14 +31,20 @@ if(WIN32)
   endif()
 endif(WIN32)
 
+if(MSVC)
+  set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Zi")
+  set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /DEBUG /OPT:REF /OPT:ICF")
+endif()
+
 file(GLOB RIMEAC_LUA_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
 include_directories(./include ${lua_dir})
 
 add_executable(${PROJECT_NAME} ${RIMEAC_LUA_SOURCES})
 target_link_libraries(${PROJECT_NAME} ${liblua} rime)
 
-if(WIN32)
+if(MSVC)
   install(TARGETS ${PROJECT_NAME} DESTINATION ${dist})
+  install(FILES "$<TARGET_FILE_DIR:${PROJECT_NAME}>/${PROJECT_NAME}.pdb" DESTINATION ${dist} OPTIONAL)
   install(FILES ${rimedll} README.md script.lua LICENSE.txt DESTINATION ${dist})
   install(DIRECTORY shared usr DESTINATION ${dist})
 endif()
