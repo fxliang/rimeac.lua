@@ -37,7 +37,7 @@ if(MSVC)
 endif()
 
 file(GLOB RIMEAC_LUA_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
-include_directories(./include ${lua_dir})
+include_directories(./include ${lua_dir} ./LuaBridge3/Distribution)
 
 add_executable(${PROJECT_NAME} ${RIMEAC_LUA_SOURCES})
 target_link_libraries(${PROJECT_NAME} ${liblua} rime)
