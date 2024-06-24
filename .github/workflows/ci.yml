@@ -23,18 +23,22 @@ jobs:
           submodules: recursive
 
       - name: Install Ninja
-        run: choco install ninja
+        run: |
+          $ErrorActionPreference = 'Stop'
+          choco install ninja
 
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v2
 
       - name: Build rimeac.lua
         run: |
+          $ErrorActionPreference = 'Stop'
           .\deps.install.bat
           .\build_vc.bat
 
       - name: Compress dists
         run: |
+          $ErrorActionPreference = 'Stop'
           del dist\.placeholder
           del dist64\.placeholder
           move dist rimeac.lua.x86
@@ -65,11 +69,3 @@ jobs:
             ./rimeac.lua.x86.7z
             ./rimeac.lua.x64.7z
 
-      #- name: Upload artifacts
-      #  uses: actions/upload-artifact@v4
-      #  if: ${{ github.repository == 'fxliang/rimeac.lua' && github.ref == 'refs/heads/master' }}
-      #  with:
-      #    if-no-files-found: error
-      #    path: |
-      #      .\rimeac.lua.x86.7z
-      #      .\rimeac.lua.x64.7z
