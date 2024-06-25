@@ -105,3 +105,4 @@ rimeac.destroy_sessions()
 rimeac.finalize_rime()
 
 print("script ends!")
+os.execute("pause")
