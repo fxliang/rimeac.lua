@@ -22,11 +22,6 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install Ninja
-        run: |
-          $ErrorActionPreference = 'Stop'
-          choco install ninja
-
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v2
 
