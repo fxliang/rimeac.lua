@@ -105,4 +105,6 @@ rimeac.destroy_sessions()
 rimeac.finalize_rime()
 
 print("script ends!")
-os.execute("pause")
+if os.getenv("OS") and os.getenv("OS"):match("Windows") ~= nil then
+  os.execute("pause")
+end
