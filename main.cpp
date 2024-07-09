@@ -1,12 +1,8 @@
-#ifndef _WIN32
-#include <lua5.4/lua.hpp>
-#else
 extern "C" {
 #include <lua.h>
 #include <lualib.h>
 #include <lauxlib.h>
 }
-#endif
 
 #include <LuaBridge/LuaBridge.h>
 #include <rime_api.h>
