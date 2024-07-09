@@ -30,11 +30,21 @@ jobs:
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v2
 
+      - uses: xmake-io/github-action-setup-xmake@v1
+        with:
+          xmake-version: latest
+          actions-cache-folder: '.xmake-cache'
+
       - name: Build rimeac.lua
         run: |
           $ErrorActionPreference = 'Stop'
           .\deps.install.bat
-          .\build_vc.bat
+          xmake f -a x64
+          xmake
+          xmake install
+          xmake f -a x86
+          xmake
+          xmake install
 
       - name: Compress dists
         run: |
