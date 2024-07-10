@@ -3,8 +3,11 @@ extern "C" {
 #include <lualib.h>
 #include <lauxlib.h>
 }
-
+#ifndef XMAKE_REPO
 #include <LuaBridge/LuaBridge.h>
+#else
+#include <luabridge3/LuaBridge/LuaBridge.h>
+#endif
 #include <rime_api.h>
 #include <rime_levers_api.h>
 #include <filesystem>
@@ -378,7 +381,18 @@ int clear_composition(lua_State* L) {
   return 0;
 }
 
-std::vector<std::string> get_candidates() {
+// std::vector<std::string> to Lua table
+int vectorStringToLua(lua_State* L, const std::vector<std::string>& vec) {
+  lua_newtable(L);
+  for (size_t i = 0; i < vec.size(); ++i) {
+    lua_pushinteger(L, i + 1); // Lua table starts from 1
+    lua_pushstring(L, vec[i].c_str()); //  string to Lua
+    lua_settable(L, -3); // table[i+1] = vec[i]
+  }
+  return 1;
+}
+
+int get_candidates(lua_State* L) {
   std::vector<std::string> ret;
   RIME_STRUCT(RimeContext, context);
   if (rime->get_context(current_session, &context)) {
@@ -389,9 +403,9 @@ std::vector<std::string> get_candidates() {
     }
     rime->free_context(&context);
   }
-  return ret;
+  return vectorStringToLua(L, ret);
 }
-std::vector<std::string> get_comments() {
+int get_comments(lua_State* L) {
   std::vector<std::string> ret;
   RIME_STRUCT(RimeContext, context);
   if (rime->get_context(current_session, &context)) {
@@ -403,9 +417,10 @@ std::vector<std::string> get_comments() {
     }
     rime->free_context(&context);
   }
-  return ret;
+  return vectorStringToLua(L, ret);
 }
 
+#ifndef MODULE
 int main(int argc, char* argv[]){
   //printf("hello world in c++!\n");
   init_env();
@@ -452,3 +467,48 @@ int main(int argc, char* argv[]){
   finalize_env();
   return 0;
 }
+
+#else
+extern "C" {
+#ifdef _WIN32
+  __declspec(dllexport)
+#endif
+  int luaopen_librimeac(lua_State* LL) {
+    L = LL;
+    luabridge::getGlobalNamespace(L)
+      .beginNamespace("rimeac")
+      .addFunction("setup_rime", &setup_rime)
+      .addFunction("init_rime", &init_rime)
+      .addFunction("finalize_rime", &finalize_rime)
+      // handle sessions without params
+      .addFunction("destroy_sessions", &destroy_sessions)
+      .addFunction("print_sessions", &print_sessions)
+      .addFunction("add_session", &add_session)
+      // param with session index start from 1
+      .addFunction("kill_session", &kill_session)
+      .addFunction("get_session", &get_session)
+      .addFunction("switch_session", &switch_session)
+      // with one parameter: session id
+      .addFunction("commit_composition_sid", &commit_composition_sid)
+      .addFunction("clear_composition_sid", &clear_composition_sid)
+      // on current session if no parameters, or with one parameter: session index
+      .addFunction("commit_composition", &commit_composition)
+      .addFunction("clear_composition", &clear_composition)
+      // on current session
+      .addFunction("get_candidates", &get_candidates)
+      .addFunction("get_comments", &get_comments)
+      .addFunction("print_session", &print_session)
+      .addFunction("simulate_keys", &simulate_keys)
+      .addFunction("select_schema", &select_schema)
+      .addFunction("select_candidate", &select_candidate)
+      .addFunction("set_option", &set_option)
+      .addFunction("get_option", &get_option)
+      .addFunction("get_index_of_current_session", &get_index_of_current_session)
+      .addFunction("get_index_of_session", &get_index_of_session)
+      .addFunction("init_env", &init_env)
+      .addFunction("finalize_env", &finalize_env)
+      .endNamespace();
+    return 0;
+  }
+}
+#endif
