@@ -5,20 +5,51 @@ set(CMAKE_CXX_STANDARD 17)
 
 set(lua_dir "lua-v5.4")
 set(lua_ver "54")
-set(liblua "lua${lua_ver}")
+set(liblua "lua_static${lua_ver}")
+
+if(WIN32)
+  if(NOT MSVC)
+    message(FATAL_ERROR "MSVC is the only toolchain supported on Windows!")
+  endif()
+endif()
 
 file(GLOB LUA_SOURCES "${lua_dir}/*.c")
 list(REMOVE_ITEM LUA_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/${lua_dir}/lua.c")
 list(REMOVE_ITEM LUA_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/${lua_dir}/onelua.c")
-#list(REMOVE_ITEM LUA_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/${lua_dir}/luac.c")
 
 add_library(${liblua} STATIC ${LUA_SOURCES})
+if(NOT WIN32)
+  target_compile_options(${liblua} PRIVATE "-fPIC")
+endif()
 
-#add_executable(lua ${lua_dir}/lua.c)
-#target_link_libraries(lua ${liblua})
-#add_executable(luac ${lua_dir}/luac.c)
-#target_link_libraries(luac ${liblua})
+if(WIN32)
+  # build lua54.dll
+  add_library(lua54 SHARED ${LUA_SOURCES})
+  set_target_properties(lua54 PROPERTIES
+      OUTPUT_NAME "lua${lua_ver}"
+      RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+      ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+      LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+  )
+  target_compile_definitions(lua54 PRIVATE LUA_BUILD_AS_DLL)
+  # build lua.exe
+  add_executable(lua "${CMAKE_CURRENT_SOURCE_DIR}/${lua_dir}/lua.c")
+  set_target_properties(lua PROPERTIES
+      RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+      ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib"
+      LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+    )
+  target_link_libraries(lua lua54)
+  #  lua.exe runs without Visual C++ Redistributable installed
+  if(MSVC)
+      set_target_properties(lua PROPERTIES
+          MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+      target_link_options(lua PRIVATE "/LARGEADDRESSAWARE")
+      target_link_options(lua54 PRIVATE "/LARGEADDRESSAWARE")
+  endif()
+endif()
 
+# link rime path and set dist path
 if(WIN32)
   if(CMAKE_SIZEOF_VOID_P EQUAL 8)
     link_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib64)
@@ -31,6 +62,7 @@ if(WIN32)
   endif()
 endif(WIN32)
 
+# set MT and pdb
 if(MSVC)
   foreach(flag_var
       CMAKE_CXX_FLAGS CMAKE_CXX_FLAGS_DEBUG CMAKE_CXX_FLAGS_RELEASE
@@ -49,12 +81,41 @@ endif()
 file(GLOB RIMEAC_LUA_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
 include_directories(./include ${lua_dir} ./LuaBridge3/Distribution)
 
+# target rimeac.lua.exe or rimeac.lua
 add_executable(${PROJECT_NAME} ${RIMEAC_LUA_SOURCES})
 target_link_libraries(${PROJECT_NAME} ${liblua} rime)
-
 if(MSVC)
-  install(TARGETS ${PROJECT_NAME} DESTINATION ${dist})
-  install(FILES "$<TARGET_FILE_DIR:${PROJECT_NAME}>/${PROJECT_NAME}.pdb" DESTINATION ${dist} OPTIONAL)
-  install(FILES ${rimedll} README.md script.lua LICENSE.txt DESTINATION ${dist})
-  install(DIRECTORY shared usr DESTINATION ${dist})
+  target_link_options(${PROJECT_NAME} PRIVATE "/LARGEADDRESSAWARE")
+endif()
+
+# target librimeac.dll or librimeac.so
+if(WIN32)
+  set(LIBRIMEAC "librimeac")
+else()
+  set(LIBRIMEAC "rimeac")
+endif()
+
+add_library(${LIBRIMEAC} SHARED ${RIMEAC_LUA_SOURCES})
+target_link_libraries(${LIBRIMEAC} ${liblua} rime)
+target_compile_definitions(${LIBRIMEAC} PRIVATE MODULE)
+if(MSVC)
+  target_link_options(${LIBRIMEAC} PRIVATE "/LARGEADDRESSAWARE")
+endif()
+
+# installations
+if(MSVC)
+  install(TARGETS ${PROJECT_NAME} 
+    DESTINATION ${dist})
+  install(TARGETS lua RUNTIME 
+    DESTINATION ${dist})
+  install(TARGETS lua54 RUNTIME 
+    DESTINATION ${dist})
+  install(FILES "$<TARGET_FILE_DIR:${PROJECT_NAME}>/${PROJECT_NAME}.pdb" 
+    DESTINATION ${dist} OPTIONAL)
+  install(FILES ${rimedll} README.md script.lua script_ext.lua LICENSE.txt 
+    DESTINATION ${dist})
+  install(DIRECTORY shared usr 
+    DESTINATION ${dist}
+    PATTERN ".placeholder" EXCLUDE)
+  install(TARGETS ${LIBRIMEAC} RUNTIME DESTINATION ${dist})
 endif()
