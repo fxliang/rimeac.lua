@@ -18,6 +18,7 @@ end
   add_links("rime")
   add_defines("MODULE")
   if is_plat("windows") then
+    add_shflags("/LARGEADDRESSAWARE")
     if is_arch("x64") then
       add_linkdirs("lib64")
     else
@@ -69,6 +70,9 @@ if is_plat("windows") then
     add_files("lua-v5.4/*.c")
     remove_files("lua-v5.4/lua.c", "lua-v5.4/onelua.c")
     add_defines("LUA_BUILD_AS_DLL")
+    if is_plat("windows") then
+      add_shflags("/LARGEADDRESSAWARE", {force=true})
+    end
     on_install(function(target)
       if is_plat("windows") then
         local function cp_file(file, src, dest)
@@ -88,6 +92,9 @@ if is_plat("windows") then
     set_kind("binary")
     add_files("lua-v5.4/lua.c")
     add_deps("lua54", {config={shared = true}})
+    if is_plat("windows") then
+      add_ldflags("/LARGEADDRESSAWARE")
+    end
     on_install(function(target)
       if is_plat("windows") then
         local function cp_file(file, src, dest)
@@ -113,6 +120,7 @@ target("rimeac.lua")
   add_files("main.cpp")
   set_symbols("debug")
   if is_plat("windows") then
+    add_ldflags("/LARGEADDRESSAWARE")
     if is_arch("x64") then
       add_linkdirs("lib64")
     else
