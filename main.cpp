@@ -423,6 +423,15 @@ int get_comments(lua_State* L) {
 #ifndef MODULE
 int main(int argc, char* argv[]){
   //printf("hello world in c++!\n");
+  bool input = false;
+  if (argc == 2) {
+    if (fs::exists(fs::path(argv[1])))
+      input = true;
+    else {
+      std::cout << "file " << argv[1] << " does not exists!\n";
+      return 1;
+    }
+  }
   init_env();
   // --------------------------------------------------------------------------
   luabridge::getGlobalNamespace(L)
@@ -457,7 +466,7 @@ int main(int argc, char* argv[]){
     .addFunction("get_index_of_session", &get_index_of_session)
     .endNamespace();
   // --------------------------------------------------------------------------
-  int st = luaL_dofile(L, "script.lua");
+  int st = luaL_dofile(L, input ? argv[1] : "script.lua");
   if (st) {
     const char* error_msg = lua_tostring(L, -1);
     printf("Error: %s\n", error_msg);
