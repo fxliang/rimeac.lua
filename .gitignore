@@ -1,0 +1,16 @@
+.xmake/*
+build/*
+dist/*
+dist64/*
+usr/*
+!usr/.placeholder
+!dist/.placeholder
+!dist64/.placeholder
+lib/*
+lib64/*
+!lib/.placeholder
+!lib64/.placeholder
+include/*
+!include/.placeholder
+log/*
+rime*.7z
