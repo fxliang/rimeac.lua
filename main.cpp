@@ -151,26 +151,33 @@ void on_message(void* context_object,
     lua_pop(L, 1);
   }
 }
-std::string get_state_label(const std::string& message_type,
-        std::string& message_value) {
+int get_state_label(lua_State* L) {
   RimeApi* rime = rime_get_api();
-  if (RIME_API_AVAILABLE(rime, get_state_label) &&
-      !strcmp(message_type.c_str(), "option")) {
-      Bool state = message_value[0] != '!';
-      const char* option_name = message_value.c_str() + !state;
-      const char* state_label =
-        rime->get_state_label(current_session, option_name, state);
-      if (state_label) {
-        return std::string(state_label);
-      }
-      return "";
+
+  if (!lua_isstring(L, 1) || !lua_isstring(L,2)) {
+    lua_pushstring(L, "");
+    return 1;
   }
-  return "";
+  const char* message_type = luaL_checkstring(L, 1);
+  const char* message_value = luaL_checkstring(L, 2);
+  if (RIME_API_AVAILABLE(rime, get_state_label) &&
+      !strcmp(message_type, "option")) {
+    Bool state = message_value[0] != '!';
+    const char* option_name = message_value + !state;
+    const char* state_label =
+      rime->get_state_label(current_session, option_name, state);
+    if (state_label)
+      lua_pushstring(L, state_label);
+    else
+      lua_pushstring(L, "");
+  } else
+    lua_pushstring(L, "");
+  return 1;
 }
 
 inline void init_env() {
-  L = luaL_newstate();
-  luaL_openlibs(L);
+  //L = luaL_newstate();
+  //luaL_openlibs(L);
   codepage = SetConsoleOutputCodePage();
 }
 inline void finalize_lua(){
@@ -212,13 +219,17 @@ void finalize_rime() {
     rime = rime_get_api();
   rime->finalize();
 }
-bool simulate_keys(const char* keys) {
+int simulate_keys(lua_State* L) {
+  const char* keys = luaL_checkstring(L, 1);
   if (!rime) {
     fprintf(stderr, "Please init rime first!\n");
-    return false;
+    lua_pushboolean(L, false);
+    return 1;
   }
   //printf("simulate keys on session: %p, %s\n", (void*)current_session, keys);
-  return rime->simulate_key_sequence(current_session, keys);
+  auto ret = rime->simulate_key_sequence(current_session, keys);
+  lua_pushboolean(L, ret);
+  return 1;
 }
 bool select_schema(const char* schema_id) {
   if (!rime) {
@@ -234,12 +245,16 @@ void set_option(const char* option_name, bool value) {
   }
   rime->set_option(current_session, option_name, value);
 }
-bool get_option(const char* option_name) {
+int get_option(lua_State* L) {
   if (!rime) {
     fprintf(stderr, "Please init rime first!\n");
-    return false;
+    lua_pushboolean(L, false);
+    return 1;
   }
-  return rime->get_option(current_session, option_name);
+  const char* option_name = luaL_checkstring(L, 1);
+  auto ret = rime->get_option(current_session, option_name);
+  lua_pushboolean(L, ret);
+  return 1;
 }
 bool select_candidate(int index) {
   if (!rime) {
@@ -322,13 +337,16 @@ int get_session(lua_State* L) {
   lua_pushinteger(L, (lua_Integer)id);
   return 1;
 }
-bool switch_session(int index) {
+int switch_session(lua_State* L) {
+  int index = luaL_checkinteger(L, 1);
   RimeSessionId id = get_session_c(index);
+  bool ret = true;
   if (!id)
-    return false;
+    ret = false;
   else
     current_session = id;
-  return true;
+  lua_pushboolean(L, ret);
+  return 1;
 }
 int get_index_of_current_session() {
   for(auto& p : sessions_map) {
@@ -471,6 +489,8 @@ int main(int argc, char* argv[]){
   }
   init_env();
   // --------------------------------------------------------------------------
+  L = luaL_newstate();
+  luaL_openlibs(L);
   luabridge::getGlobalNamespace(L)
     .beginNamespace("rimeac")
     .addFunction("setup_rime", &setup_rime)
