@@ -120,19 +120,52 @@ void on_message(void* context_object,
                 RimeSessionId session_id,
                 const char* message_type,
                 const char* message_value) {
-  printf("message: [%p] [%s] %s\n", (void*)session_id, message_type, message_value);
+  // try to load on_message from external lua script
+  lua_getglobal(L, "on_message");
+  // if on_message is defined in lua script
+  if (lua_isfunction(L, -1)) {
+    lua_pushlightuserdata(L, context_object);
+    lua_pushnumber(L, static_cast<lua_Number>(session_id));
+    lua_pushstring(L, message_type);
+    lua_pushstring(L, message_value);
+    if (lua_pcall(L, 4, 0, 0) != LUA_OK) {
+      const char* error_message = lua_tostring(L, -1);
+      std::cerr << "Error calling on_message: " << error_message << std::endl;
+      lua_pop(L, 1);
+    }
+  } else {
+    // default on_message
+    printf("message: [%p] [%s] %s\n", (void*)session_id, message_type, message_value);
+    RimeApi* rime = rime_get_api();
+    if (RIME_API_AVAILABLE(rime, get_state_label) &&
+        !strcmp(message_type, "option")) {
+      Bool state = message_value[0] != '!';
+      const char* option_name = message_value + !state;
+      const char* state_label =
+        rime->get_state_label(session_id, option_name, state);
+      if (state_label) {
+        printf("updated option: %s = %d // %s\n", option_name, state,
+            state_label);
+      }
+    }
+    lua_pop(L, 1);
+  }
+}
+std::string get_state_label(const std::string& message_type,
+        std::string& message_value) {
   RimeApi* rime = rime_get_api();
   if (RIME_API_AVAILABLE(rime, get_state_label) &&
-      !strcmp(message_type, "option")) {
-    Bool state = message_value[0] != '!';
-    const char* option_name = message_value + !state;
-    const char* state_label =
-        rime->get_state_label(session_id, option_name, state);
-    if (state_label) {
-      printf("updated option: %s = %d // %s\n", option_name, state,
-             state_label);
-    }
+      !strcmp(message_type.c_str(), "option")) {
+      Bool state = message_value[0] != '!';
+      const char* option_name = message_value.c_str() + !state;
+      const char* state_label =
+        rime->get_state_label(current_session, option_name, state);
+      if (state_label) {
+        return std::string(state_label);
+      }
+      return "";
   }
+  return "";
 }
 
 inline void init_env() {
@@ -420,6 +453,10 @@ int get_comments(lua_State* L) {
   return vectorStringToLua(L, ret);
 }
 
+int get_current_session(lua_State* L) {
+  lua_pushinteger(L, (lua_Integer)current_session);
+  return 1;
+}
 #ifndef MODULE
 int main(int argc, char* argv[]){
   //printf("hello world in c++!\n");
@@ -464,6 +501,8 @@ int main(int argc, char* argv[]){
     .addFunction("get_option", &get_option)
     .addFunction("get_index_of_current_session", &get_index_of_current_session)
     .addFunction("get_index_of_session", &get_index_of_session)
+    .addFunction("get_state_label", &get_state_label)
+    .addProperty("current_session", &get_current_session)
     .endNamespace();
   // --------------------------------------------------------------------------
   int st = luaL_dofile(L, input ? argv[1] : "script.lua");
