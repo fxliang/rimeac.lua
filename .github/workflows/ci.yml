@@ -20,7 +20,7 @@ jobs:
       - name: Checkout last commit
         uses: actions/checkout@v4
         with:
-          submodules: recursive
+          submodules: true
 
       - name: Add msbuild to PATH
         uses: microsoft/setup-msbuild@v2
