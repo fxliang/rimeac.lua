@@ -1,4 +1,39 @@
-package.cpath = package.cpath .. ';./?.so;./?.dll'
+-------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+-- get absolute path of current script
+function script_path()
+  local fullpath = debug.getinfo(1,"S").source:sub(2)
+  if package.config:sub(1,1) == '\\' then
+    local dirname_, filename_ = fullpath:match('^(.*\\)([^\\]+)$')
+    local currentDir = io.popen("cd"):read("*l")
+    if not dirname_ then dirname_ = '.' end
+    if not filename_ then filename_ = fullpath end
+    local command = 'cd ' .. dirname_ .. ' && cd'
+    local p = io.popen(command)
+    fullpath = p:read("*l") .. '\\' .. filename_
+    p:close()
+    os.execute('cd ' .. currentDir)
+    fullpath = fullpath:gsub('[\n\r]*$','')
+    dirname, filename = fullpath:match('^(.*\\)([^\\]+)$')
+  else
+    fullpath = io.popen("realpath '"..fullpath.."'", 'r'):read('a')
+    fullpath = fullpath:gsub('[\n\r]*$','')
+    dirname, filename = fullpath:match('^(.*/)([^/]-)$')
+  end
+  dirname = dirname or ''
+  filename = filename or fullpath
+  return dirname
+end
+
+-- get path divider
+local div = package.config:sub(1,1) == '\\' and '\\' or '/'
+local lib = package.config:sub(1,1) == '\\' and '?.dll' or '?.so'
+local script_cpath = script_path() .. div .. lib
+-- add the ?.so or ?.dll to package.cpath ensure requiring
+-- you must keep the rime.dll or librime.so in current search path
+package.cpath = package.cpath .. ';' .. script_cpath
+-------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 require("librimeac")
 
 print("script begins!")
@@ -87,9 +122,9 @@ rimeac.print_session()
 -- get candidates and comments in lua
 local cands,cmds = rimeac.get_candidates(), rimeac.get_comments()
 if #cands then
-	for i, v in ipairs(cands) do
-		print(cands[i], cmds[i])
-	end
+  for i, v in ipairs(cands) do
+    print(cands[i], cmds[i])
+  end
 end
 --- assert(cands[1] == '测试')
 --- follow line will fail
@@ -109,6 +144,3 @@ rimeac.finalize_rime()
 
 rimeac.finalize_env()
 print("script ends!")
-if os.getenv("OS") and os.getenv("OS"):match("Windows") ~= nil then
-  os.execute("pause")
-end
