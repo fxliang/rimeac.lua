@@ -31,7 +31,7 @@ inline unsigned int SetConsoleOutputCodePage(unsigned int codepage = 65001) {
 using SessionsMap = std::map<int, RimeSessionId>;
 namespace fs = std::filesystem;
 unsigned int codepage;
-lua_State* L;
+lua_State* l;
 RimeApi* rime;
 SessionsMap sessions_map;
 RimeSessionId current_session;
@@ -121,17 +121,17 @@ void on_message(void* context_object,
                 const char* message_type,
                 const char* message_value) {
   // try to load on_message from external lua script
-  lua_getglobal(L, "on_message");
+  lua_getglobal(l, "on_message");
   // if on_message is defined in lua script
-  if (lua_isfunction(L, -1)) {
-    lua_pushlightuserdata(L, context_object);
-    lua_pushnumber(L, static_cast<lua_Number>(session_id));
-    lua_pushstring(L, message_type);
-    lua_pushstring(L, message_value);
-    if (lua_pcall(L, 4, 0, 0) != LUA_OK) {
-      const char* error_message = lua_tostring(L, -1);
+  if (lua_isfunction(l, -1)) {
+    lua_pushlightuserdata(l, context_object);
+    lua_pushnumber(l, static_cast<lua_Number>(session_id));
+    lua_pushstring(l, message_type);
+    lua_pushstring(l, message_value);
+    if (lua_pcall(l, 4, 0, 0) != LUA_OK) {
+      const char* error_message = lua_tostring(l, -1);
       std::cerr << "Error calling on_message: " << error_message << std::endl;
-      lua_pop(L, 1);
+      lua_pop(l, 1);
     }
   } else {
     // default on_message
@@ -148,7 +148,7 @@ void on_message(void* context_object,
             state_label);
       }
     }
-    lua_pop(L, 1);
+    lua_pop(l, 1);
   }
 }
 int get_state_label(lua_State* L) {
@@ -158,8 +158,8 @@ int get_state_label(lua_State* L) {
     lua_pushstring(L, "");
     return 1;
   }
-  const char* message_type = luaL_checkstring(L, 1);
-  const char* message_value = luaL_checkstring(L, 2);
+  const char* message_type = lua_tostring(L, 1);
+  const char* message_value = lua_tostring(L, 2);
   if (RIME_API_AVAILABLE(rime, get_state_label) &&
       !strcmp(message_type, "option")) {
     Bool state = message_value[0] != '!';
@@ -176,22 +176,25 @@ int get_state_label(lua_State* L) {
 }
 
 inline void init_env() {
-  //L = luaL_newstate();
-  //luaL_openlibs(L);
   codepage = SetConsoleOutputCodePage();
 }
 inline void finalize_lua(){
-  lua_close(L);
+  lua_close(l);
 }
 inline void finalize_env(){
+#ifndef MODULE
   finalize_lua();
+#endif
   if (!rime)
     rime = rime_get_api();
   rime->finalize();
   SetConsoleOutputCodePage(codepage);
 }
-void setup_rime(const char* app_name, const char* shared, const char* usr,
-    const char* log) {
+void setup_rime(lua_State* L) {
+  const char* app_name = lua_tostring(L, 1);
+  const char* shared = lua_tostring(L, 2);
+  const char* usr = lua_tostring(L, 3);
+  const char* log = lua_tostring(L, 4);
   if (!rime)
     rime = rime_get_api();
   RIME_STRUCT(RimeTraits, traits);
@@ -220,7 +223,7 @@ void finalize_rime() {
   rime->finalize();
 }
 int simulate_keys(lua_State* L) {
-  const char* keys = luaL_checkstring(L, 1);
+  const char* keys = lua_tostring(L, 1);
   if (!rime) {
     fprintf(stderr, "Please init rime first!\n");
     lua_pushboolean(L, false);
@@ -231,19 +234,26 @@ int simulate_keys(lua_State* L) {
   lua_pushboolean(L, ret);
   return 1;
 }
-bool select_schema(const char* schema_id) {
+int select_schema(lua_State* L) {
+  const char* schema_id = lua_tostring(L, 1);
   if (!rime) {
     fprintf(stderr, "Please init rime first!\n");
-    return false;
+    lua_pushboolean(L, false);
+    return 1;
   }
-  return rime->select_schema(current_session, schema_id);
+  auto ret = rime->select_schema(current_session, schema_id);
+  lua_pushboolean(L, ret);
+  return 1;
 }
-void set_option(const char* option_name, bool value) {
+int set_option(lua_State* L) {
   if (!rime) {
     fprintf(stderr, "Please init rime first!\n");
-    return;
+    return 0;
   }
+  const char* option_name = lua_tostring(L, 1);
+  bool value = lua_toboolean(L, 2);
   rime->set_option(current_session, option_name, value);
+  return 0;
 }
 int get_option(lua_State* L) {
   if (!rime) {
@@ -251,18 +261,21 @@ int get_option(lua_State* L) {
     lua_pushboolean(L, false);
     return 1;
   }
-  const char* option_name = luaL_checkstring(L, 1);
+  const char* option_name = lua_tostring(L, 1);
   auto ret = rime->get_option(current_session, option_name);
   lua_pushboolean(L, ret);
   return 1;
 }
-bool select_candidate(int index) {
+int select_candidate(lua_State* L) {
+  int index = lua_tointeger(L, 1);
   if (!rime) {
     fprintf(stderr, "Please init rime first!\n");
-    return false;
+    lua_pushboolean(L, false);
+    return 1;
   }
-  return (index > 0 &&
-      rime->select_candidate_on_current_page(current_session, (index-1)));
+  auto ret = (index > 0) && rime->select_candidate_on_current_page(current_session, (index-1));
+  lua_pushboolean(L, ret);
+  return 1;
 }
 void print_sessions() {
   printf("current sessions list:\n");
@@ -332,13 +345,13 @@ RimeSessionId get_session_c(int index) {
 
 // without parameters in lua
 int get_session(lua_State* L) {
-  lua_Integer index = luaL_checkinteger(L, 1);
+  lua_Integer index = lua_tointeger(L, 1);
   auto id = get_session_c((int)index);
   lua_pushinteger(L, (lua_Integer)id);
   return 1;
 }
 int switch_session(lua_State* L) {
-  int index = luaL_checkinteger(L, 1);
+  int index = lua_tointeger(L, 1);
   RimeSessionId id = get_session_c(index);
   bool ret = true;
   if (!id)
@@ -348,16 +361,19 @@ int switch_session(lua_State* L) {
   lua_pushboolean(L, ret);
   return 1;
 }
-int get_index_of_current_session() {
+int get_index_of_current_session(lua_State* L) {
   for(auto& p : sessions_map) {
-    if(p.second == current_session)
-      return p.first;
+    if(p.second == current_session) {
+      lua_pushinteger(L, p.first);
+      return 1;
+    }
   }
-  return 0;
+  lua_pushinteger(L, 0);
+  return 1;
 }
 // with parameter session_id in lua
 int get_index_of_session(lua_State* L) {
-  lua_Integer id = luaL_checkinteger(L, 1);
+  lua_Integer id = lua_tointeger(L, 1);
   lua_Integer idx = 0;
   for(auto& p : sessions_map) {
     if(p.second == id) {
@@ -375,7 +391,7 @@ int commit_composition_sid(lua_State* L) {
     fprintf(stderr, "Please init rime first!\n");
     return false;
   }
-  lua_Integer sid = luaL_checkinteger(L, 1);
+  lua_Integer sid = lua_tointeger(L, 1);
   auto ret = rime->commit_composition(sid);
   lua_pushboolean(L, ret);
   return 1;
@@ -386,7 +402,7 @@ int clear_composition_sid(lua_State* L) {
     fprintf(stderr, "Please init rime first!\n");
     return 0;
   }
-  lua_Integer sid = luaL_checkinteger(L, 1);
+  lua_Integer sid = lua_tointeger(L, 1);
   rime->clear_composition(sid);
   return 0;
 }
@@ -401,7 +417,7 @@ int commit_composition(lua_State* L) {
     if (!n)
       ret = rime->commit_composition(current_session);
     else {
-      int idx = (int)luaL_checkinteger(L, 1);
+      int idx = (int)lua_tointeger(L, 1);
       auto id = get_session_c((int)idx);
       if (id)
         ret = rime->commit_composition((RimeSessionId)id);
@@ -421,7 +437,7 @@ int clear_composition(lua_State* L) {
     if (!n)
       rime->clear_composition(current_session);
     else {
-      int idx = (int)luaL_checkinteger(L, 1);
+      int idx = (int)lua_tointeger(L, 1);
       auto id = get_session_c((int)idx);
       if (id)
         rime->clear_composition((RimeSessionId)id);
@@ -489,9 +505,9 @@ int main(int argc, char* argv[]){
   }
   init_env();
   // --------------------------------------------------------------------------
-  L = luaL_newstate();
-  luaL_openlibs(L);
-  luabridge::getGlobalNamespace(L)
+  l = luaL_newstate();
+  luaL_openlibs(l);
+  luabridge::getGlobalNamespace(l)
     .beginNamespace("rimeac")
     .addFunction("setup_rime", &setup_rime)
     .addFunction("init_rime", &init_rime)
@@ -525,11 +541,11 @@ int main(int argc, char* argv[]){
     .addProperty("current_session", &get_current_session)
     .endNamespace();
   // --------------------------------------------------------------------------
-  int st = luaL_dofile(L, input ? argv[1] : "script.lua");
+  int st = luaL_dofile(l, input ? argv[1] : "script.lua");
   if (st) {
-    const char* error_msg = lua_tostring(L, -1);
+    const char* error_msg = lua_tostring(l, -1);
     printf("Error: %s\n", error_msg);
-    lua_pop(L, -1);
+    lua_pop(l, -1);
   }
   // --------------------------------------------------------------------------
   finalize_env();
@@ -541,9 +557,9 @@ extern "C" {
 #ifdef _WIN32
   __declspec(dllexport)
 #endif
-  int luaopen_librimeac(lua_State* LL) {
-    L = LL;
-    luabridge::getGlobalNamespace(L)
+  int luaopen_librimeac(lua_State* L) {
+    l = L;
+    luabridge::getGlobalNamespace(l)
       .beginNamespace("rimeac")
       .addFunction("setup_rime", &setup_rime)
       .addFunction("init_rime", &init_rime)
@@ -575,6 +591,8 @@ extern "C" {
       .addFunction("get_index_of_session", &get_index_of_session)
       .addFunction("init_env", &init_env)
       .addFunction("finalize_env", &finalize_env)
+      .addFunction("get_state_label", &get_state_label)
+      .addProperty("current_session", &get_current_session)
       .endNamespace();
     return 0;
   }
