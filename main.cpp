@@ -287,22 +287,25 @@ void print_sessions() {
         schema_id);
   }
 }
-bool add_session() {
+int add_session(lua_State* L) {
   if (!rime) {
     fprintf(stderr, "Please init rime first!\n");
-    return false;
+    lua_pushboolean(L, false);
+    return 1;
   }
   RimeSessionId id = rime->create_session();
   if (!id) {
     fprintf(stderr, "Error creating new rime session.\n");
-    return false;
+    lua_pushboolean(L, false);
+    return 1;
   }
   if (sessions_map.size())
     sessions_map[sessions_map.rbegin()->first + 1] = id;
   else
     sessions_map[1] = id;
   current_session = id;
-  return true;
+  lua_pushboolean(L, true);
+  return 1;
 }
 void destroy_sessions() {
   if (!rime) {
@@ -315,15 +318,16 @@ void destroy_sessions() {
   }
   sessions_map.clear();
 }
-void kill_session(int id) {
+int kill_session(lua_State* L) {
   if (!rime) {
     fprintf(stderr, "Please init rime first!\n");
-    return;
+    return 0;
   }
+  auto id = lua_tointeger(L, 1);
   auto it = sessions_map.find(id);
   if (it == sessions_map.end()) {
     fprintf(stderr, "no session by this index!\n");
-    return;
+    return 0;
   }
   if (it != sessions_map.begin())
     it--;
@@ -333,6 +337,7 @@ void kill_session(int id) {
   rime->destroy_session(sessions_map[id]);
   sessions_map.erase(id);
   current_session = it->second;
+  return 0;
 }
 RimeSessionId get_session_c(int index) {
   if (index == 0)
