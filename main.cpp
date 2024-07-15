@@ -190,7 +190,7 @@ inline void finalize_env(){
   rime->finalize();
   SetConsoleOutputCodePage(codepage);
 }
-void setup_rime(lua_State* L) {
+int setup_rime(lua_State* L) {
   const char* app_name = lua_tostring(L, 1);
   const char* shared = lua_tostring(L, 2);
   const char* usr = lua_tostring(L, 3);
@@ -207,6 +207,7 @@ void setup_rime(lua_State* L) {
   if (!fs::exists(log)) {
     fs::create_directories(log);
   }
+  return 0;
 }
 void init_rime() {
   fprintf(stderr, "initializing...\n");
@@ -394,7 +395,8 @@ int get_index_of_session(lua_State* L) {
 int commit_composition_sid(lua_State* L) {
   if (!rime) {
     fprintf(stderr, "Please init rime first!\n");
-    return false;
+    lua_pushboolean(L, false);
+    return 1;
   }
   lua_Integer sid = lua_tointeger(L, 1);
   auto ret = rime->commit_composition(sid);
