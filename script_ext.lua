@@ -9,7 +9,7 @@ function on_message(obj, id, msg_type, msg_value)
   local state_label = rimeac.get_state_label(msg_type, msg_value)
   if msg_type == "option" then
     local option_name = msg_value:sub(1, 1) == "!" and msg_value:sub(2) or msg_value
-    local state = msg_value[1] ~= '!' and 1 or 0
+    local state = rimeac.get_option(option_name) and 1 or 0
     if state_label ~= '' and state_label ~= nil then
       print(string.format("lua > update option: %s = %d // %s",
         option_name, state, state_label))
