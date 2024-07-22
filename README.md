@@ -49,7 +49,7 @@ linux user have to do more works to build the app/module yourself.
 
 ### with `rimeac.lua`  or `rimeac.lua.exe` as a program
 
-if no parameters followed, it will run with the `script.lua` in the same directory or `rimea.lua`
+if no parameters followed, it will run with the `script.lua` in the same directory or `rimeac.lua`
 
 if run with specific lua file, e.g., `rimeac.lua.exe path_to_myscript.lua`, it will run with the `path_to_myscript.lua`
 
