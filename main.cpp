@@ -209,14 +209,19 @@ int setup_rime(lua_State* L) {
   }
   return 0;
 }
-void init_rime() {
+int init_rime(lua_State *L) {
   fprintf(stderr, "initializing...\n");
   if (!rime)
     rime = rime_get_api();
+  bool full_check = false;
+  int n = lua_gettop(L);
+  if (n == 1)
+    full_check = lua_toboolean(L, 1);
   rime->initialize(NULL);
-  if (rime->start_maintenance(True))
+  if (rime->start_maintenance(full_check))
     rime->join_maintenance_thread();
   fprintf(stderr, "ready.\n");
+  return 0;
 }
 void finalize_rime() {
   if (!rime)
