@@ -16,6 +16,7 @@ extern "C" {
 #include <string.h>
 
 #ifdef _WIN32
+#define LIBRIMEAC_API __declspec(dllexport)
 #include <windows.h>
 inline unsigned int SetConsoleOutputCodePage(unsigned int codepage = CP_UTF8) {
   unsigned int cp = GetConsoleOutputCP();
@@ -23,6 +24,7 @@ inline unsigned int SetConsoleOutputCodePage(unsigned int codepage = CP_UTF8) {
   return cp;
 }
 #else
+#define LIBRIMEAC_API
 inline unsigned int SetConsoleOutputCodePage(unsigned int codepage = 65001) {
   return 0;
 }
@@ -503,32 +505,7 @@ int get_current_session(lua_State *L) {
   return 1;
 }
 
-// for rimeac.lua
-#ifndef MODULE
-int main(int argc, char *argv[]) {
-  bool input = false;
-  if (argc == 2) {
-    if (fs::exists(fs::path(argv[1])))
-      input = true;
-    else {
-      std::cout << "file " << argv[1] << " does not exists!\n";
-      return 1;
-    }
-  }
-  init_env();
-  // --------------------------------------------------------------------------
-  l = luaL_newstate();
-  luaL_openlibs(l);
-
-#else // for librimeac.so
-extern "C" {
-#ifdef _WIN32
-__declspec(dllexport)
-#endif
-int luaopen_librimeac(lua_State* L) {
-  l = L;
-#endif /* MODULE */
-
+void register_c_functions(lua_State *l) {
   luabridge::getGlobalNamespace(l)
       .beginNamespace("rimeac")
       .addFunction("setup_rime", &setup_rime)
@@ -570,22 +547,36 @@ int luaopen_librimeac(lua_State* L) {
       .addFunction("finalize_env", &finalize_env)
 #endif
       .endNamespace();
-  // for rimeac.lua, load script file
-#ifndef MODULE
-  // --------------------------------------------------------------------------
-  int st = luaL_dofile(l, input ? argv[1] : "script.lua");
-  if (st) {
+}
+
+extern "C" {
+#ifdef MODULE
+LIBRIMEAC_API int luaopen_librimeac(lua_State *L) {
+  l = L;
+  register_c_functions(l);
+#else
+int main(int argc, char *argv[]) {
+  bool input = false;
+  if (argc == 2) {
+    if (fs::exists(fs::path(argv[1])))
+      input = true;
+    else {
+      std::cout << "file " << argv[1] << " does not exists!\n";
+      return 1;
+    }
+  }
+  init_env();
+  l = luaL_newstate();
+  luaL_openlibs(l);
+
+  register_c_functions(l);
+  if (luaL_dofile(l, input ? argv[1] : "script.lua")) {
     const char *error_msg = lua_tostring(l, -1);
     printf("Error: %s\n", error_msg);
     lua_pop(l, -1);
   }
-  // --------------------------------------------------------------------------
   finalize_env();
 #endif /* MODULE */
-
   return 0;
 }
-// for librimeac.so, end of extern C
-#ifdef MODULE
 }
-#endif /* extern C */
