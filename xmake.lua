@@ -152,13 +152,13 @@ target("rimeac.lua")
         dist_path = path.join("$(projectdir)", "dist64")
         os.rm(path.join(dist_path, "log"))
         os.rm(path.join(dist_path, "usr"))
-        install_files(target, {"script.lua", "README.md", "LICENSE.txt", "lib64/rime.dll", "shared", "usr"}, dist_path)
+        install_files(target, {"script.lua", "script_ext.lua", "rime_api_console.lua", "README.md", "LICENSE.txt", "lib64/rime.dll", "shared", "usr"}, dist_path)
         os.rm(path.join(dist_path, "usr/.placeholder"))
       else
         dist_path = path.join("$(projectdir)", "dist")
         os.rm(path.join(dist_path, "log"))
         os.rm(path.join(dist_path, "usr"))
-        install_files(target, {"script.lua", "README.md", "LICENSE.txt", "lib/rime.dll", "shared", "usr"}, dist_path)
+        install_files(target, {"script.lua", "script_ext.lua", "rime_api_console.lua", "README.md", "LICENSE.txt", "lib/rime.dll", "shared", "usr"}, dist_path)
         os.rm(path.join(dist_path, "usr/.placeholder"))
       end
     elseif is_plat("linux") then
