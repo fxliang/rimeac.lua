@@ -112,7 +112,7 @@ if(MSVC)
     DESTINATION ${dist})
   install(FILES "$<TARGET_FILE_DIR:${PROJECT_NAME}>/${PROJECT_NAME}.pdb" 
     DESTINATION ${dist} OPTIONAL)
-  install(FILES ${rimedll} README.md script.lua script_ext.lua LICENSE.txt 
+  install(FILES ${rimedll} README.md script.lua script_ext.lua rime_api_console.lua LICENSE.txt
     DESTINATION ${dist})
   install(DIRECTORY shared usr 
     DESTINATION ${dist}
