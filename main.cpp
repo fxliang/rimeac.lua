@@ -3,11 +3,7 @@ extern "C" {
 #include <lua.h>
 #include <lualib.h>
 }
-#ifndef XMAKE_REPO
 #include <LuaBridge/LuaBridge.h>
-#else
-#include <luabridge3/LuaBridge/LuaBridge.h>
-#endif
 #include <filesystem>
 #include <rime_api.h>
 #include <rime_levers_api.h>
@@ -281,6 +277,30 @@ int select_candidate(lua_State *L) {
   lua_pushboolean(L, ret);
   return 1;
 }
+int delete_candidate_on_current_page(lua_State *L) {
+  int index = lua_tointeger(L, 1);
+  if (!rime) {
+    fprintf(stderr, "Please init rime first!\n");
+    lua_pushboolean(L, false);
+    return 1;
+  }
+  auto ret = (index > 0) && rime->delete_candidate_on_current_page(
+                                current_session, (index - 1));
+  lua_pushboolean(L, ret);
+  return 1;
+}
+int delete_candidate(lua_State *L) {
+  int index = lua_tointeger(L, 1);
+  if (!rime) {
+    fprintf(stderr, "Please init rime first!\n");
+    lua_pushboolean(L, false);
+    return 1;
+  }
+  auto ret =
+      (index > 0) && rime->delete_candidate(current_session, (index - 1));
+  lua_pushboolean(L, ret);
+  return 1;
+}
 void print_sessions() {
   printf("current sessions list:\n");
   for (const auto &p : sessions_map) {
@@ -500,6 +520,40 @@ int get_comments(lua_State *L) {
   return vectorStringToLua(L, ret);
 }
 
+int synchronize(lua_State *L) {
+  auto ret = rime->sync_user_data();
+  lua_pushboolean(L, ret);
+  return 1;
+}
+int get_schema_id_list(lua_State *L) {
+  std::vector<std::string> ret;
+  RimeSchemaList list;
+  if (rime->get_schema_list(&list)) {
+    for (auto i = 0; i < list.size; ++i)
+      ret.push_back(list.list[i].schema_id);
+    rime->free_schema_list(&list);
+  }
+  return vectorStringToLua(L, ret);
+}
+
+int get_schema_name_list(lua_State *L) {
+  std::vector<std::string> ret;
+  RimeSchemaList list;
+  if (rime->get_schema_list(&list)) {
+    for (auto i = 0; i < list.size; ++i)
+      ret.push_back(list.list[i].name);
+    rime->free_schema_list(&list);
+  }
+  return vectorStringToLua(L, ret);
+}
+
+int get_current_schema(lua_State *L) {
+  char current[100] = {0};
+  rime->get_current_schema(current_session, current, sizeof(current));
+  lua_pushstring(L, current);
+  return 1;
+}
+
 int get_current_session(lua_State *L) {
   lua_pushinteger(L, (lua_Integer)current_session);
   return 1;
@@ -510,6 +564,7 @@ void register_c_functions(lua_State *l) {
       .beginNamespace("rimeac")
       .addFunction("setup_rime", &setup_rime)
       .addFunction("init_rime", &init_rime)
+      .addFunction("synchronize", &synchronize)
       .addFunction("finalize_rime", &finalize_rime)
       // handle sessions without params
       .addFunction("destroy_sessions", &destroy_sessions)
@@ -527,12 +582,19 @@ void register_c_functions(lua_State *l) {
       .addFunction("commit_composition", &commit_composition)
       .addFunction("clear_composition", &clear_composition)
       // on current session
+
+      .addFunction("get_schema_id_list", &get_schema_id_list)
+      .addFunction("get_schema_name_list", &get_schema_name_list)
+      .addFunction("get_current_schema", &get_current_schema)
       .addFunction("get_candidates", &get_candidates)
       .addFunction("get_comments", &get_comments)
       .addFunction("print_session", &print_session)
       .addFunction("simulate_keys", &simulate_keys)
       .addFunction("select_schema", &select_schema)
       .addFunction("select_candidate", &select_candidate)
+      .addFunction("delete_candidate", &delete_candidate)
+      .addFunction("delete_candidate_on_current_page",
+                   &delete_candidate_on_current_page)
       .addFunction("set_option", &set_option)
       .addFunction("get_option", &get_option)
       .addFunction("get_index_of_current_session",
