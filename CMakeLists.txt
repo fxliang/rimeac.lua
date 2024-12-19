@@ -7,12 +7,6 @@ set(lua_dir "lua-v5.4")
 set(lua_ver "54")
 set(liblua "lua_static${lua_ver}")
 
-if(WIN32)
-  if(NOT MSVC)
-    message(FATAL_ERROR "MSVC is the only toolchain supported on Windows!")
-  endif()
-endif()
-
 file(GLOB LUA_SOURCES "${lua_dir}/*.c")
 list(REMOVE_ITEM LUA_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/${lua_dir}/lua.c")
 list(REMOVE_ITEM LUA_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/${lua_dir}/onelua.c")
@@ -20,6 +14,12 @@ list(REMOVE_ITEM LUA_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/${lua_dir}/onelua.c")
 add_library(${liblua} STATIC ${LUA_SOURCES})
 if(NOT WIN32)
   target_compile_options(${liblua} PRIVATE "-fPIC")
+endif()
+
+if(MINGW)
+  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc -static-libstdc++ -static")
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -static-libgcc -static-libstdc++ -static")
+  set(CMAKE_MODULE_LINKER_FLAGS "${CMAKE_MODULE_LINKER_FLAGS} -static-libgcc -static-libstdc++ -static")
 endif()
 
 if(WIN32)
@@ -79,7 +79,7 @@ if(MSVC)
 endif()
 
 file(GLOB RIMEAC_LUA_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp")
-include_directories(./include ${lua_dir} ./LuaBridge3/Distribution)
+include_directories(./include ${lua_dir})
 
 # target rimeac.lua.exe or rimeac.lua
 add_executable(${PROJECT_NAME} ${RIMEAC_LUA_SOURCES})
@@ -89,7 +89,7 @@ if(MSVC)
 endif()
 
 # target librimeac.dll or librimeac.so
-if(WIN32)
+if(MSVC)
   set(LIBRIMEAC "librimeac")
 else()
   set(LIBRIMEAC "rimeac")
@@ -112,6 +112,19 @@ if(MSVC)
     DESTINATION ${dist})
   install(FILES "$<TARGET_FILE_DIR:${PROJECT_NAME}>/${PROJECT_NAME}.pdb" 
     DESTINATION ${dist} OPTIONAL)
+  install(FILES ${rimedll} README.md script.lua script_ext.lua rime_api_console.lua LICENSE.txt
+    DESTINATION ${dist})
+  install(DIRECTORY shared usr 
+    DESTINATION ${dist}
+    PATTERN ".placeholder" EXCLUDE)
+  install(TARGETS ${LIBRIMEAC} RUNTIME DESTINATION ${dist})
+elseif(MINGW)
+  install(TARGETS ${PROJECT_NAME} 
+    DESTINATION ${dist})
+  install(TARGETS lua RUNTIME 
+    DESTINATION ${dist})
+  install(TARGETS lua54 RUNTIME 
+    DESTINATION ${dist})
   install(FILES ${rimedll} README.md script.lua script_ext.lua rime_api_console.lua LICENSE.txt
     DESTINATION ${dist})
   install(DIRECTORY shared usr 

@@ -3,13 +3,15 @@ extern "C" {
 #include <lua.h>
 #include <lualib.h>
 }
-#include <LuaBridge/LuaBridge.h>
 #include <filesystem>
+#include <iostream>
+#include <map>
 #include <rime_api.h>
 #include <rime_levers_api.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <vector>
 
 #ifdef _WIN32
 #define LIBRIMEAC_API __declspec(dllexport)
@@ -34,6 +36,7 @@ RimeApi *rime;
 SessionsMap sessions_map;
 RimeSessionId current_session;
 
+extern "C" {
 void print_status(RimeStatus *status) {
   printf("schema: %s / %s\n", status->schema_id, status->schema_name);
   printf("status: ");
@@ -92,7 +95,7 @@ void print_context(RimeContext *context) {
   }
   print_menu(&context->menu);
 }
-void print_session() {
+int print_session(lua_State *L) {
   RimeApi *rime = rime_get_api();
   RimeSessionId session_id = current_session;
   RIME_STRUCT(RimeCommit, commit);
@@ -113,6 +116,7 @@ void print_session() {
     print_context(&context);
     rime->free_context(&context);
   }
+  return 0;
 }
 void on_message(void *context_object, RimeSessionId session_id,
                 const char *message_type, const char *message_value) {
@@ -172,9 +176,12 @@ int get_state_label(lua_State *L) {
   return 1;
 }
 
-inline void init_env() { codepage = SetConsoleOutputCodePage(); }
 inline void finalize_lua() { lua_close(l); }
-inline void finalize_env() {
+int init_env(lua_State *L) {
+  codepage = SetConsoleOutputCodePage();
+  return 0;
+}
+int finalize_env(lua_State *L) {
 #ifndef MODULE
   finalize_lua();
 #endif
@@ -182,6 +189,7 @@ inline void finalize_env() {
     rime = rime_get_api();
   rime->finalize();
   SetConsoleOutputCodePage(codepage);
+  return 0;
 }
 int setup_rime(lua_State *L) {
   const char *app_name = lua_tostring(L, 1);
@@ -216,10 +224,11 @@ int init_rime(lua_State *L) {
   fprintf(stderr, "ready.\n");
   return 0;
 }
-void finalize_rime() {
+int finalize_rime(lua_State *L) {
   if (!rime)
     rime = rime_get_api();
   rime->finalize();
+  return 0;
 }
 int simulate_keys(lua_State *L) {
   const char *keys = lua_tostring(L, 1);
@@ -301,7 +310,7 @@ int delete_candidate(lua_State *L) {
   lua_pushboolean(L, ret);
   return 1;
 }
-void print_sessions() {
+int print_sessions(lua_State *L) {
   printf("current sessions list:\n");
   for (const auto &p : sessions_map) {
     char schema_id[256] = {0};
@@ -310,6 +319,7 @@ void print_sessions() {
     printf("%c %d. session_id: %p, schema_id: %s\n", mk, p.first,
            (void *)p.second, schema_id);
   }
+  return 0;
 }
 int add_session(lua_State *L) {
   if (!rime) {
@@ -331,16 +341,17 @@ int add_session(lua_State *L) {
   lua_pushboolean(L, true);
   return 1;
 }
-void destroy_sessions() {
+int destroy_sessions(lua_State *L) {
   if (!rime) {
     fprintf(stderr, "Please init rime first!\n");
-    return;
+    return 0;
   }
   for (const auto &s : sessions_map) {
     printf("destroy session: %p\n", (void *)s.second);
     rime->destroy_session(s.second);
   }
   sessions_map.clear();
+  return 0;
 }
 int kill_session(lua_State *L) {
   if (!rime) {
@@ -558,57 +569,56 @@ int get_current_session(lua_State *L) {
   lua_pushinteger(L, (lua_Integer)current_session);
   return 1;
 }
+}
 
-void register_c_functions(lua_State *l) {
-  luabridge::getGlobalNamespace(l)
-      .beginNamespace("rimeac")
-      .addFunction("setup_rime", &setup_rime)
-      .addFunction("init_rime", &init_rime)
-      .addFunction("synchronize", &synchronize)
-      .addFunction("finalize_rime", &finalize_rime)
-      // handle sessions without params
-      .addFunction("destroy_sessions", &destroy_sessions)
-      .addFunction("print_sessions", &print_sessions)
-      .addFunction("add_session", &add_session)
-      // param with session index start from 1
-      .addFunction("kill_session", &kill_session)
-      .addFunction("get_session", &get_session)
-      .addFunction("switch_session", &switch_session)
-      // with one parameter: session id
-      .addFunction("commit_composition_sid", &commit_composition_sid)
-      .addFunction("clear_composition_sid", &clear_composition_sid)
-      // on current session if no parameters, or with one parameter: session
-      // index
-      .addFunction("commit_composition", &commit_composition)
-      .addFunction("clear_composition", &clear_composition)
-      // on current session
-
-      .addFunction("get_schema_id_list", &get_schema_id_list)
-      .addFunction("get_schema_name_list", &get_schema_name_list)
-      .addFunction("get_current_schema", &get_current_schema)
-      .addFunction("get_candidates", &get_candidates)
-      .addFunction("get_comments", &get_comments)
-      .addFunction("print_session", &print_session)
-      .addFunction("simulate_keys", &simulate_keys)
-      .addFunction("select_schema", &select_schema)
-      .addFunction("select_candidate", &select_candidate)
-      .addFunction("delete_candidate", &delete_candidate)
-      .addFunction("delete_candidate_on_current_page",
-                   &delete_candidate_on_current_page)
-      .addFunction("set_option", &set_option)
-      .addFunction("get_option", &get_option)
-      .addFunction("get_index_of_current_session",
-                   &get_index_of_current_session)
-      .addFunction("get_index_of_session", &get_index_of_session)
-      .addFunction("get_state_label", &get_state_label)
-      .addProperty("current_session", &get_current_session)
-
-// for librimeac.so
+void register_c_functions(lua_State *L) {
+  lua_newtable(L);
+  lua_setglobal(L, "rimeac");
+  lua_getglobal(L, "rimeac");
+#define REG_FUNC(L, func, name)                                                \
+  lua_pushcfunction(L, &func);                                                 \
+  lua_setfield(L, -2, name)
+  // 注册每个 C 函数到 Lua 表中
+  REG_FUNC(L, setup_rime, "setup_rime");
+  REG_FUNC(L, init_rime, "init_rime");
+  REG_FUNC(L, synchronize, "synchronize");
+  REG_FUNC(L, finalize_rime, "finalize_rime");
+  REG_FUNC(L, destroy_sessions, "destroy_sessions");
+  REG_FUNC(L, print_sessions, "print_sessions");
+  REG_FUNC(L, add_session, "add_session");
+  REG_FUNC(L, kill_session, "kill_session");
+  REG_FUNC(L, get_session, "get_session");
+  REG_FUNC(L, switch_session, "switch_session");
+  REG_FUNC(L, commit_composition_sid, "commit_composition_sid");
+  REG_FUNC(L, clear_composition_sid, "clear_composition_sid");
+  REG_FUNC(L, commit_composition, "commit_composition");
+  REG_FUNC(L, clear_composition, "clear_composition");
+  REG_FUNC(L, get_schema_id_list, "get_schema_id_list");
+  REG_FUNC(L, get_schema_name_list, "get_schema_name_list");
+  REG_FUNC(L, get_current_schema, "get_current_schema");
+  REG_FUNC(L, get_candidates, "get_candidates");
+  REG_FUNC(L, get_comments, "get_comments");
+  REG_FUNC(L, print_session, "print_session");
+  REG_FUNC(L, simulate_keys, "simulate_keys");
+  REG_FUNC(L, select_schema, "select_schema");
+  REG_FUNC(L, select_candidate, "select_candidate");
+  REG_FUNC(L, delete_candidate, "delete_candidate");
+  REG_FUNC(L, delete_candidate_on_current_page,
+           "delete_candidate_on_current_page");
+  REG_FUNC(L, set_option, "set_option");
+  REG_FUNC(L, get_option, "get_option");
+  REG_FUNC(L, get_index_of_current_session, "get_index_of_current_session");
+  REG_FUNC(L, get_index_of_session, "get_index_of_session");
+  REG_FUNC(L, get_state_label, "get_state_label");
+  lua_pushstring(L, "current_session");
+  lua_pushinteger(L, (lua_Integer)current_session);
+  lua_settable(L, -3);
 #ifdef MODULE
-      .addFunction("init_env", &init_env)
-      .addFunction("finalize_env", &finalize_env)
+  REG_FUNC(L, init_env, "init_env");
+  REG_FUNC(L, finalize_env, "finalize_env");
 #endif
-      .endNamespace();
+#undef REG_FUNC
+  lua_pop(L, 1);
 }
 
 extern "C" {
@@ -627,8 +637,8 @@ int main(int argc, char *argv[]) {
       return 1;
     }
   }
-  init_env();
   l = luaL_newstate();
+  init_env(l);
   luaL_openlibs(l);
 
   register_c_functions(l);
@@ -637,7 +647,7 @@ int main(int argc, char *argv[]) {
     printf("Error: %s\n", error_msg);
     lua_pop(l, -1);
   }
-  finalize_env();
+  finalize_env(l);
 #endif /* MODULE */
   return 0;
 }
