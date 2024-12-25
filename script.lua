@@ -122,4 +122,22 @@ rimeac.destroy_sessions()
 --- rimeac.finalize_rime() no params
 rimeac.finalize_rime()
 
+-- export user dict demo
+rimeac.initialize()
+if rimeac.export_user_dict("luna_pinyin", "./luna_pinyin_export.txt") then
+  print('export user dict luna_pinyin to ./luna_pinyin_export.txt done')
+else
+  print('export user dict luna_pinyin to ./luna_pinyin_export.txt failed')
+end
+rimeac.finalize()
+
+-- import user dict demo
+rimeac.initialize()
+if rimeac.import_user_dict("luna_pinyin", "./luna_pinyin_export.txt") then
+  print('import user dict luna_pinyin from ./luna_pinyin_export.txt done')
+else
+  print('import user dict luna_pinyin from ./luna_pinyin_export.txt failed')
+end
+rimeac.finalize()
+
 print("script ends!")

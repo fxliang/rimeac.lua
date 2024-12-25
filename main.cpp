@@ -224,6 +224,13 @@ int init_rime(lua_State *L) {
   fprintf(stderr, "ready.\n");
   return 0;
 }
+
+int initialize(lua_State *L) {
+  if (!rime)
+    rime = rime_get_api();
+  rime->initialize(NULL);
+  return 0;
+}
 int finalize_rime(lua_State *L) {
   if (!rime)
     rime = rime_get_api();
@@ -536,6 +543,27 @@ int synchronize(lua_State *L) {
   lua_pushboolean(L, ret);
   return 1;
 }
+
+int export_user_dict(lua_State *L) {
+  const char *dict_name = lua_tostring(L, 1);
+  const char *file_path = lua_tostring(L, 2);
+  auto path = fs::absolute(fs::path(file_path));
+  auto api = (RimeLeversApi *)rime_get_api()->find_module("levers")->get_api();
+  auto ret = api->export_user_dict(dict_name, path.u8string().c_str());
+  lua_pushboolean(L, ret);
+  return 1;
+}
+
+int import_user_dict(lua_State *L) {
+  const char *dict_name = lua_tostring(L, 1);
+  const char *file_path = lua_tostring(L, 2);
+  auto path = fs::absolute(fs::path(file_path));
+  auto api = (RimeLeversApi *)rime_get_api()->find_module("levers")->get_api();
+  auto ret = api->import_user_dict(dict_name, path.u8string().c_str());
+  lua_pushboolean(L, ret);
+  return 1;
+}
+
 int get_schema_id_list(lua_State *L) {
   std::vector<std::string> ret;
   RimeSchemaList list;
@@ -583,6 +611,10 @@ void register_c_functions(lua_State *L) {
   REG_FUNC(L, init_rime, "init_rime");
   REG_FUNC(L, synchronize, "synchronize");
   REG_FUNC(L, finalize_rime, "finalize_rime");
+  REG_FUNC(L, initialize, "initialize");
+  REG_FUNC(L, finalize_rime, "finalize");
+  REG_FUNC(L, export_user_dict, "export_user_dict");
+  REG_FUNC(L, import_user_dict, "import_user_dict");
   REG_FUNC(L, destroy_sessions, "destroy_sessions");
   REG_FUNC(L, print_sessions, "print_sessions");
   REG_FUNC(L, add_session, "add_session");
