@@ -564,6 +564,33 @@ int import_user_dict(lua_State *L) {
   return 1;
 }
 
+int restore_user_dict(lua_State *L) {
+  const char *file_path = lua_tostring(L, 1);
+  auto path = fs::absolute(fs::path(file_path));
+  auto api = (RimeLeversApi *)rime_get_api()->find_module("levers")->get_api();
+  auto ret = api->restore_user_dict(path.u8string().c_str());
+  lua_pushboolean(L, ret);
+  return 1;
+}
+
+int backup_user_dict(lua_State *L) {
+  char dir[MAX_PATH] = {0};
+  rime_get_api()->get_user_data_sync_dir(dir, _countof(dir));
+  try {
+    if (!fs::exists(fs::path(dir)))
+      fs::create_directories(fs::path(dir));
+  } catch (const fs::filesystem_error &e) {
+    std::cerr << "exception when creating directory: " << dir << ", "
+              << e.what() << std::endl;
+  }
+  const char *dict_name = lua_tostring(L, 1);
+  auto path = std::string(dir) + ".userdb.txt";
+  auto api = (RimeLeversApi *)rime_get_api()->find_module("levers")->get_api();
+  auto ret = api->backup_user_dict(dict_name);
+  lua_pushboolean(L, ret);
+  return 1;
+}
+
 int get_schema_id_list(lua_State *L) {
   std::vector<std::string> ret;
   RimeSchemaList list;
@@ -615,6 +642,8 @@ void register_c_functions(lua_State *L) {
   REG_FUNC(L, finalize_rime, "finalize");
   REG_FUNC(L, export_user_dict, "export_user_dict");
   REG_FUNC(L, import_user_dict, "import_user_dict");
+  REG_FUNC(L, backup_user_dict, "backup_user_dict");
+  REG_FUNC(L, restore_user_dict, "restore_user_dict");
   REG_FUNC(L, destroy_sessions, "destroy_sessions");
   REG_FUNC(L, print_sessions, "print_sessions");
   REG_FUNC(L, add_session, "add_session");

@@ -140,4 +140,12 @@ else
 end
 rimeac.finalize()
 
+rimeac.initialize()
+if rimeac.backup_user_dict("luna_pinyin") then
+  print('backup luna_pinyin done')
+else
+  print('backup luna_pinyin failed')
+end
+rimeac.finalize()
+
 print("script ends!")
