@@ -574,8 +574,12 @@ int restore_user_dict(lua_State *L) {
 }
 
 int backup_user_dict(lua_State *L) {
+#ifdef _WIN32
   char dir[MAX_PATH] = {0};
-  rime_get_api()->get_user_data_sync_dir(dir, _countof(dir));
+#else
+  char dir[PATH_MAX] = {0};
+#endif
+  rime_get_api()->get_user_data_sync_dir(dir, sizeof(dir) / sizeof(char));
   try {
     if (!fs::exists(fs::path(dir)))
       fs::create_directories(fs::path(dir));
