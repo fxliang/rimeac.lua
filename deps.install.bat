@@ -1,8 +1,8 @@
 setlocal
 
 rem exact librime
-set rime_version=1.11.2
-set rime_hash=5b09f35
+set rime_version=1.12.0
+set rime_hash=c7ab639
 
 set download_archive=rime-%rime_hash%-Windows-msvc-x86.7z
 set download_archive_x64=rime-%rime_hash%-Windows-msvc-x64.7z
@@ -21,9 +21,11 @@ copy /Y librime\dist\include\rime_*.h include\
 copy /Y librime\dist\lib\rime.lib lib\
 copy /Y librime\dist\lib\rime.dll dist\
 copy /Y librime\dist\lib\rime.dll lib\
+copy /Y librime\dist\lib\rime.pdb lib\
 
 copy /Y librime_x64\dist\lib\rime.lib lib64\
 copy /Y librime_x64\dist\lib\rime.dll dist64\
 copy /Y librime_x64\dist\lib\rime.dll lib64\
+copy /Y librime_x64\dist\lib\rime.pdb lib64\
 
 rmdir /s /q librime librime_x64
