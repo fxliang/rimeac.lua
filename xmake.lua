@@ -123,14 +123,15 @@ target("rimeac.lua")
           end
         end
         cp_file(target:filename(), target:targetdir(), dist_path)
-        if is_plat('windows') then cp_file("rimeac.lua.pdb", target:targetdir(), dist_path) end
+        if is_plat('windows') then cp_file(target:basename()..".pdb", target:targetdir(), dist_path) end
         for _, f in ipairs(files) do cp_file(f, "$(projectdir)", dist_path) end
       end
       local dist_path = path.join("$(projectdir)", is_arch("x64", "x86_64") and "dist64" or "dist")
       local rimedll = is_arch("x64", "x86_64") and "lib64/rime.dll" or "lib/rime.dll"
+      local rimepdb = is_arch("x64", "x86_64") and "lib64/rime.pdb" or "lib/rime.pdb"
       os.rm(path.join(dist_path, "log"))
       os.rm(path.join(dist_path, "usr"))
-      install_files(target, {"script.lua", "script_ext.lua", "rime_api_console.lua", "README.md", "LICENSE.txt", rimedll, "shared", "usr"}, dist_path)
+      install_files(target, {"script.lua", "script_ext.lua", "rime_api_console.lua", "README.md", "LICENSE.txt", rimedll, rimepdb, "shared", "usr"}, dist_path)
       os.rm(path.join(dist_path, "usr/.placeholder"))
     elseif is_plat("linux") then os.trycp(target:targetfile(), "$(projectdir)") end
   end)
