@@ -7,11 +7,10 @@ set(lua_dir "lua-v5.4")
 set(lua_ver "54")
 set(liblua "lua_static${lua_ver}")
 
-file(GLOB LUA_SOURCES "${lua_dir}/*.c")
-list(REMOVE_ITEM LUA_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/${lua_dir}/lua.c")
-list(REMOVE_ITEM LUA_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/${lua_dir}/onelua.c")
+file(GLOB LUA_SOURCES "${lua_dir}/onelua.c")
 
 add_library(${liblua} STATIC ${LUA_SOURCES})
+target_compile_definitions(${liblua} PRIVATE MAKE_LIB)
 if(NOT WIN32)
   target_compile_options(${liblua} PRIVATE "-fPIC")
 endif()
@@ -24,7 +23,7 @@ endif()
 
 if(WIN32)
   # build lua54.dll
-  add_library(lua54 SHARED ${LUA_SOURCES})
+  add_library(lua${lua_ver} SHARED ${LUA_SOURCES})
   set_target_properties(lua54 PROPERTIES
       OUTPUT_NAME "lua${lua_ver}"
       RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
@@ -42,8 +41,7 @@ if(WIN32)
   target_link_libraries(lua lua54)
   #  lua.exe runs without Visual C++ Redistributable installed
   if(MSVC)
-      set_target_properties(lua PROPERTIES
-          MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+      set_target_properties(lua PROPERTIES MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
       target_link_options(lua PRIVATE "/LARGEADDRESSAWARE")
       target_link_options(lua54 PRIVATE "/LARGEADDRESSAWARE")
   endif()
@@ -55,10 +53,12 @@ if(WIN32)
     link_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib64)
     set(dist ${CMAKE_CURRENT_SOURCE_DIR}/dist64)
     set(rimedll ${CMAKE_CURRENT_SOURCE_DIR}/lib64/rime.dll)
+    set(rimepdb ${CMAKE_CURRENT_SOURCE_DIR}/lib64/rime.pdb)
   else()
     link_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib)
     set(dist ${CMAKE_CURRENT_SOURCE_DIR}/dist)
     set(rimedll ${CMAKE_CURRENT_SOURCE_DIR}/lib/rime.dll)
+    set(rimepdb ${CMAKE_CURRENT_SOURCE_DIR}/lib/rime.pdb)
   endif()
 endif(WIN32)
 
@@ -74,6 +74,8 @@ if(MSVC)
     endif(${flag_var} MATCHES "/MD")
   endforeach(flag_var)
 
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /Zi /utf-8")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /utf-8")
   set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /Zi")
   set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /DEBUG /OPT:REF /OPT:ICF")
 endif()
@@ -103,32 +105,15 @@ if(MSVC)
 endif()
 
 # installations
-if(MSVC)
-  install(TARGETS ${PROJECT_NAME} 
-    DESTINATION ${dist})
-  install(TARGETS lua RUNTIME 
-    DESTINATION ${dist})
-  install(TARGETS lua54 RUNTIME 
-    DESTINATION ${dist})
-  install(FILES "$<TARGET_FILE_DIR:${PROJECT_NAME}>/${PROJECT_NAME}.pdb" 
-    DESTINATION ${dist} OPTIONAL)
-  install(FILES ${rimedll} README.md script.lua script_ext.lua rime_api_console.lua LICENSE.txt
-    DESTINATION ${dist})
-  install(DIRECTORY shared usr 
-    DESTINATION ${dist}
-    PATTERN ".placeholder" EXCLUDE)
+if (WIN32)
+  install(TARGETS ${PROJECT_NAME} DESTINATION ${dist})
+  install(TARGETS lua RUNTIME DESTINATION ${dist})
+  install(TARGETS lua54 RUNTIME DESTINATION ${dist})
+  install(FILES ${rimedll} README.md script.lua script_ext.lua rime_api_console.lua LICENSE.txt DESTINATION ${dist})
+  install(DIRECTORY shared usr DESTINATION ${dist} PATTERN ".placeholder" EXCLUDE)
   install(TARGETS ${LIBRIMEAC} RUNTIME DESTINATION ${dist})
-elseif(MINGW)
-  install(TARGETS ${PROJECT_NAME} 
-    DESTINATION ${dist})
-  install(TARGETS lua RUNTIME 
-    DESTINATION ${dist})
-  install(TARGETS lua54 RUNTIME 
-    DESTINATION ${dist})
-  install(FILES ${rimedll} README.md script.lua script_ext.lua rime_api_console.lua LICENSE.txt
-    DESTINATION ${dist})
-  install(DIRECTORY shared usr 
-    DESTINATION ${dist}
-    PATTERN ".placeholder" EXCLUDE)
-  install(TARGETS ${LIBRIMEAC} RUNTIME DESTINATION ${dist})
+  if(MSVC)
+    install(FILES "$<TARGET_FILE_DIR:${PROJECT_NAME}>/${PROJECT_NAME}.pdb" DESTINATION ${dist} OPTIONAL)
+    install(FILES "${rimepdb}" DESTINATION ${dist} OPTIONAL)
+  endif()
 endif()
