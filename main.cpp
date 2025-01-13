@@ -282,38 +282,38 @@ int get_option(lua_State *L) {
   return 1;
 }
 int select_candidate(lua_State *L) {
-  int index = lua_tointeger(L, 1);
+  auto index = lua_tointeger(L, 1);
   if (!rime) {
     fprintf(stderr, "Please init rime first!\n");
     lua_pushboolean(L, false);
     return 1;
   }
   auto ret = (index > 0) && rime->select_candidate_on_current_page(
-                                current_session, (index - 1));
+                                current_session, ((size_t)index - 1));
   lua_pushboolean(L, ret);
   return 1;
 }
 int delete_candidate_on_current_page(lua_State *L) {
-  int index = lua_tointeger(L, 1);
+  auto index = lua_tointeger(L, 1);
   if (!rime) {
     fprintf(stderr, "Please init rime first!\n");
     lua_pushboolean(L, false);
     return 1;
   }
   auto ret = (index > 0) && rime->delete_candidate_on_current_page(
-                                current_session, (index - 1));
+                                current_session, ((size_t)index - 1));
   lua_pushboolean(L, ret);
   return 1;
 }
 int delete_candidate(lua_State *L) {
-  int index = lua_tointeger(L, 1);
+  auto index = lua_tointeger(L, 1);
   if (!rime) {
     fprintf(stderr, "Please init rime first!\n");
     lua_pushboolean(L, false);
     return 1;
   }
-  auto ret =
-      (index > 0) && rime->delete_candidate(current_session, (index - 1));
+  auto ret = (index > 0) &&
+             rime->delete_candidate(current_session, ((size_t)index - 1));
   lua_pushboolean(L, ret);
   return 1;
 }
@@ -366,7 +366,7 @@ int kill_session(lua_State *L) {
     return 0;
   }
   auto id = lua_tointeger(L, 1);
-  auto it = sessions_map.find(id);
+  auto it = sessions_map.find((int)id);
   if (it == sessions_map.end()) {
     fprintf(stderr, "no session by this index!\n");
     return 0;
@@ -375,9 +375,9 @@ int kill_session(lua_State *L) {
     it--;
   else
     it++;
-  printf("destroy session: %p\n", (void *)sessions_map[id]);
-  rime->destroy_session(sessions_map[id]);
-  sessions_map.erase(id);
+  printf("destroy session: %p\n", (void *)sessions_map[(int)id]);
+  rime->destroy_session(sessions_map[(int)id]);
+  sessions_map.erase((int)id);
   current_session = it->second;
   return 0;
 }
@@ -398,8 +398,8 @@ int get_session(lua_State *L) {
   return 1;
 }
 int switch_session(lua_State *L) {
-  int index = lua_tointeger(L, 1);
-  RimeSessionId id = get_session_c(index);
+  auto index = lua_tointeger(L, 1);
+  RimeSessionId id = get_session_c((int)index);
   bool ret = true;
   if (!id)
     ret = false;
@@ -440,7 +440,7 @@ int commit_composition_sid(lua_State *L) {
     return 1;
   }
   lua_Integer sid = lua_tointeger(L, 1);
-  auto ret = rime->commit_composition(sid);
+  auto ret = rime->commit_composition((RimeSessionId)sid);
   lua_pushboolean(L, ret);
   return 1;
 }
@@ -451,7 +451,7 @@ int clear_composition_sid(lua_State *L) {
     return 0;
   }
   lua_Integer sid = lua_tointeger(L, 1);
-  rime->clear_composition(sid);
+  rime->clear_composition((RimeSessionId)sid);
   return 0;
 }
 
@@ -599,7 +599,7 @@ int get_schema_id_list(lua_State *L) {
   std::vector<std::string> ret;
   RimeSchemaList list;
   if (rime->get_schema_list(&list)) {
-    for (auto i = 0; i < list.size; ++i)
+    for (size_t i = 0; i < list.size; ++i)
       ret.push_back(list.list[i].schema_id);
     rime->free_schema_list(&list);
   }
@@ -610,7 +610,7 @@ int get_schema_name_list(lua_State *L) {
   std::vector<std::string> ret;
   RimeSchemaList list;
   if (rime->get_schema_list(&list)) {
-    for (auto i = 0; i < list.size; ++i)
+    for (size_t i = 0; i < list.size; ++i)
       ret.push_back(list.list[i].name);
     rime->free_schema_list(&list);
   }
