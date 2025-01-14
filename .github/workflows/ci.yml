@@ -63,3 +63,25 @@ jobs:
             ./rimeac.lua.x86.7z
             ./rimeac.lua.x64.7z
 
+  xmake_build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout last commit
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - uses: xmake-io/github-action-setup-xmake@v1
+
+      - uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Build rimeac.lua
+        run: |
+          $ErrorActionPreference = 'Stop'
+          .\deps.install.bat
+          xmake f -p windows -a x64
+          xmake
+          xmake install
+          xmake f -p windows -a x86
+          xmake
+          xmake install
