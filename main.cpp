@@ -3,6 +3,7 @@ extern "C" {
 #include <lua.h>
 #include <lualib.h>
 }
+#include <cassert>
 #include <filesystem>
 #include <iostream>
 #include <map>
@@ -27,14 +28,37 @@ inline unsigned int SetConsoleOutputCodePage(unsigned int codepage = 65001) {
   return 0;
 }
 #endif /* _WIN32 */
+#define STR(x) (x ? x : "")
 
 using SessionsMap = std::map<int, RimeSessionId>;
 namespace fs = std::filesystem;
 unsigned int codepage;
 lua_State *l;
-RimeApi *rime;
+RimeApi *rime = nullptr;
 SessionsMap sessions_map;
 RimeSessionId current_session;
+
+inline void PUSH_STRING_TABLE(lua_State *L, const char *data,
+                              const char *name) {
+  lua_pushstring(L, name);
+  lua_pushstring(L, data);
+  lua_settable(L, -3);
+}
+inline void PUSH_INT_TABLE(lua_State *L, const int data, const char *name) {
+  lua_pushstring(L, name);
+  lua_pushinteger(L, data);
+  lua_settable(L, -3);
+}
+inline void PUSH_BOOL_TABLE(lua_State *L, const bool data, const char *name) {
+  lua_pushstring(L, name);
+  lua_pushboolean(L, data);
+  lua_settable(L, -3);
+}
+inline void PUSH_NIL_TABLE(lua_State *L, const char *name) {
+  lua_pushstring(L, name);
+  lua_pushnil(L);
+  lua_settable(L, -3);
+}
 
 extern "C" {
 void print_status(RimeStatus *status) {
@@ -96,7 +120,6 @@ void print_context(RimeContext *context) {
   print_menu(&context->menu);
 }
 int print_session(lua_State *L) {
-  RimeApi *rime = rime_get_api();
   RimeSessionId session_id = current_session;
   RIME_STRUCT(RimeCommit, commit);
   RIME_STRUCT(RimeStatus, status);
@@ -118,6 +141,95 @@ int print_session(lua_State *L) {
   }
   return 0;
 }
+int get_context(lua_State *L) {
+  RimeSessionId session_id = current_session;
+  RIME_STRUCT(RimeCommit, commit);
+  RIME_STRUCT(RimeStatus, status);
+  RIME_STRUCT(RimeContext, context);
+  if (rime->get_commit(session_id, &commit)) {
+    lua_pushstring(L, commit.text);
+    rime->free_commit(&commit);
+  } else {
+    lua_pushnil(L);
+  }
+  // push 2nd return status
+  if (rime->get_status(session_id, &status)) {
+    lua_newtable(L);
+    PUSH_INT_TABLE(L, status.data_size, "data_size");
+    PUSH_STRING_TABLE(L, status.schema_id, "schema_id");
+    PUSH_STRING_TABLE(L, status.schema_name, "schema_name");
+    PUSH_BOOL_TABLE(L, status.is_disabled, "is_disabled");
+    PUSH_BOOL_TABLE(L, status.is_composing, "is_composing");
+    PUSH_BOOL_TABLE(L, status.is_ascii_mode, "is_ascii_mode");
+    PUSH_BOOL_TABLE(L, status.is_full_shape, "is_full_shape");
+    PUSH_BOOL_TABLE(L, status.is_simplified, "is_simplified");
+    PUSH_BOOL_TABLE(L, status.is_traditional, "is_traditional");
+    PUSH_BOOL_TABLE(L, status.is_ascii_punct, "is_ascii_punct");
+    rime->free_status(&status);
+  } else
+    lua_pushnil(L);
+  // push 3rd return context
+  if (rime->get_context(session_id, &context)) {
+    lua_newtable(L);
+    PUSH_INT_TABLE(L, context.data_size, "data_size");
+    // push context.composition
+    lua_pushstring(L, "composition");
+    lua_newtable(L);
+    PUSH_INT_TABLE(L, context.composition.length, "length");
+    PUSH_INT_TABLE(L, context.composition.cursor_pos, "cursor_pos");
+    PUSH_INT_TABLE(L, context.composition.sel_start, "sel_start");
+    PUSH_INT_TABLE(L, context.composition.sel_end, "sel_end");
+    PUSH_STRING_TABLE(L, STR(context.composition.preedit), "preedit");
+    lua_settable(L, -3); // context.composition
+    // push context.menu
+    lua_pushstring(L, "menu");
+    lua_newtable(L);
+    PUSH_INT_TABLE(L, context.menu.page_size, "page_size");
+    PUSH_INT_TABLE(L, context.menu.page_no, "page_no");
+    PUSH_BOOL_TABLE(L, context.menu.is_last_page, "is_last_page");
+    PUSH_INT_TABLE(L, context.menu.highlighted_candidate_index + 1,
+                   "highlighted_candidate_index");
+    PUSH_INT_TABLE(L, context.menu.num_candidates, "num_candidates");
+    // push context.menu.candidates
+    if (context.menu.num_candidates) {
+      lua_pushstring(L, "candidates");
+      lua_newtable(L);
+      for (int i = 0; i < context.menu.num_candidates; i++) {
+        lua_pushnumber(L, i + 1); // Lua table index starts from 1
+        // Create a new table for each candidate
+        lua_newtable(L);
+        if (RIME_STRUCT_HAS_MEMBER(context, context.select_labels) &&
+            context.select_labels)
+          PUSH_STRING_TABLE(L, STR(context.select_labels[i]), "label");
+        else if (context.menu.select_keys) {
+          const auto key = std::string(1, context.menu.select_keys[i]);
+          PUSH_STRING_TABLE(L, key.c_str(), "label");
+        } else {
+          const auto key = std::to_string((i + 1) % 10);
+          PUSH_STRING_TABLE(L, key.c_str(), "label");
+        }
+        // Push the 'text' field of the candidate
+        PUSH_STRING_TABLE(L, STR(context.menu.candidates[i].text), "text");
+        // Push the 'comment' field of the candidate
+        PUSH_STRING_TABLE(L, STR(context.menu.candidates[i].comment),
+                          "comment");
+        // Set the candidate table in the candidates list
+        lua_settable(L, -3);
+      }
+      lua_settable(L, -3); // context.menu.candidates
+    } else
+      PUSH_NIL_TABLE(L, "candidates");
+    // push context.menu.select_keys
+    PUSH_STRING_TABLE(L, STR(context.menu.select_keys), "select_keys");
+    lua_settable(L, -3); // context.menu
+    // push context.commit_text_preview
+    PUSH_STRING_TABLE(L, STR(context.commit_text_preview),
+                      "commit_text_preview");
+    rime->free_context(&context);
+  } else
+    lua_pushnil(L);
+  return 3;
+}
 void on_message(void *context_object, RimeSessionId session_id,
                 const char *message_type, const char *message_value) {
   // try to load on_message from external lua script
@@ -137,7 +249,6 @@ void on_message(void *context_object, RimeSessionId session_id,
     // default on_message
     printf("message: [%p] [%s] %s\n", (void *)session_id, message_type,
            message_value);
-    RimeApi *rime = rime_get_api();
     if (RIME_API_AVAILABLE(rime, get_state_label) &&
         !strcmp(message_type, "option")) {
       Bool state = message_value[0] != '!';
@@ -153,7 +264,6 @@ void on_message(void *context_object, RimeSessionId session_id,
   }
 }
 int get_state_label(lua_State *L) {
-  RimeApi *rime = rime_get_api();
 
   if (!lua_isstring(L, 1) || !lua_isstring(L, 2)) {
     lua_pushstring(L, "");
@@ -175,7 +285,6 @@ int get_state_label(lua_State *L) {
     lua_pushstring(L, "");
   return 1;
 }
-
 inline void finalize_lua() { lua_close(l); }
 int init_env(lua_State *L) {
   codepage = SetConsoleOutputCodePage();
@@ -185,8 +294,6 @@ int finalize_env(lua_State *L) {
 #ifndef MODULE
   finalize_lua();
 #endif
-  if (!rime)
-    rime = rime_get_api();
   rime->finalize();
   SetConsoleOutputCodePage(codepage);
   return 0;
@@ -196,8 +303,6 @@ int setup_rime(lua_State *L) {
   const char *shared = lua_tostring(L, 2);
   const char *usr = lua_tostring(L, 3);
   const char *log = lua_tostring(L, 4);
-  if (!rime)
-    rime = rime_get_api();
   RIME_STRUCT(RimeTraits, traits);
   traits.app_name = app_name;
   traits.shared_data_dir = shared;
@@ -212,8 +317,6 @@ int setup_rime(lua_State *L) {
 }
 int init_rime(lua_State *L) {
   fprintf(stderr, "initializing...\n");
-  if (!rime)
-    rime = rime_get_api();
   bool full_check = false;
   int n = lua_gettop(L);
   if (n == 1)
@@ -224,16 +327,11 @@ int init_rime(lua_State *L) {
   fprintf(stderr, "ready.\n");
   return 0;
 }
-
 int initialize(lua_State *L) {
-  if (!rime)
-    rime = rime_get_api();
   rime->initialize(NULL);
   return 0;
 }
 int finalize_rime(lua_State *L) {
-  if (!rime)
-    rime = rime_get_api();
   rime->finalize();
   return 0;
 }
@@ -389,7 +487,6 @@ RimeSessionId get_session_c(int index) {
   else
     return 0;
 }
-
 // without parameters in lua
 int get_session(lua_State *L) {
   lua_Integer index = lua_tointeger(L, 1);
@@ -431,7 +528,6 @@ int get_index_of_session(lua_State *L) {
   lua_pushinteger(L, idx);
   return 1;
 }
-
 // with parameter session_id in lua
 int commit_composition_sid(lua_State *L) {
   if (!rime) {
@@ -454,7 +550,6 @@ int clear_composition_sid(lua_State *L) {
   rime->clear_composition((RimeSessionId)sid);
   return 0;
 }
-
 // with parameter session index in lua, or without parameters for
 // current_session
 int commit_composition(lua_State *L) {
@@ -497,7 +592,6 @@ int clear_composition(lua_State *L) {
   }
   return 0;
 }
-
 // std::vector<std::string> to Lua table
 int vectorStringToLua(lua_State *L, const std::vector<std::string> &vec) {
   lua_newtable(L);
@@ -508,7 +602,6 @@ int vectorStringToLua(lua_State *L, const std::vector<std::string> &vec) {
   }
   return 1;
 }
-
 int get_candidates(lua_State *L) {
   std::vector<std::string> ret;
   RIME_STRUCT(RimeContext, context);
@@ -537,49 +630,44 @@ int get_comments(lua_State *L) {
   }
   return vectorStringToLua(L, ret);
 }
-
 int synchronize(lua_State *L) {
   auto ret = rime->sync_user_data();
   lua_pushboolean(L, ret);
   return 1;
 }
-
 int export_user_dict(lua_State *L) {
   const char *dict_name = lua_tostring(L, 1);
   const char *file_path = lua_tostring(L, 2);
   auto path = fs::absolute(fs::path(file_path));
-  auto api = (RimeLeversApi *)rime_get_api()->find_module("levers")->get_api();
+  auto api = (RimeLeversApi *)rime->find_module("levers")->get_api();
   auto ret = api->export_user_dict(dict_name, path.u8string().c_str());
   lua_pushboolean(L, ret);
   return 1;
 }
-
 int import_user_dict(lua_State *L) {
   const char *dict_name = lua_tostring(L, 1);
   const char *file_path = lua_tostring(L, 2);
   auto path = fs::absolute(fs::path(file_path));
-  auto api = (RimeLeversApi *)rime_get_api()->find_module("levers")->get_api();
+  auto api = (RimeLeversApi *)rime->find_module("levers")->get_api();
   auto ret = api->import_user_dict(dict_name, path.u8string().c_str());
   lua_pushboolean(L, ret);
   return 1;
 }
-
 int restore_user_dict(lua_State *L) {
   const char *file_path = lua_tostring(L, 1);
   auto path = fs::absolute(fs::path(file_path));
-  auto api = (RimeLeversApi *)rime_get_api()->find_module("levers")->get_api();
+  auto api = (RimeLeversApi *)rime->find_module("levers")->get_api();
   auto ret = api->restore_user_dict(path.u8string().c_str());
   lua_pushboolean(L, ret);
   return 1;
 }
-
 int backup_user_dict(lua_State *L) {
 #ifdef _WIN32
   char dir[MAX_PATH] = {0};
 #else
   char dir[PATH_MAX] = {0};
 #endif
-  rime_get_api()->get_user_data_sync_dir(dir, sizeof(dir) / sizeof(char));
+  rime->get_user_data_sync_dir(dir, sizeof(dir) / sizeof(char));
   try {
     if (!fs::exists(fs::path(dir)))
       fs::create_directories(fs::path(dir));
@@ -589,12 +677,11 @@ int backup_user_dict(lua_State *L) {
   }
   const char *dict_name = lua_tostring(L, 1);
   auto path = std::string(dir) + ".userdb.txt";
-  auto api = (RimeLeversApi *)rime_get_api()->find_module("levers")->get_api();
+  auto api = (RimeLeversApi *)rime->find_module("levers")->get_api();
   auto ret = api->backup_user_dict(dict_name);
   lua_pushboolean(L, ret);
   return 1;
 }
-
 int get_schema_id_list(lua_State *L) {
   std::vector<std::string> ret;
   RimeSchemaList list;
@@ -605,7 +692,6 @@ int get_schema_id_list(lua_State *L) {
   }
   return vectorStringToLua(L, ret);
 }
-
 int get_schema_name_list(lua_State *L) {
   std::vector<std::string> ret;
   RimeSchemaList list;
@@ -616,14 +702,12 @@ int get_schema_name_list(lua_State *L) {
   }
   return vectorStringToLua(L, ret);
 }
-
 int get_current_schema(lua_State *L) {
   char current[100] = {0};
   rime->get_current_schema(current_session, current, sizeof(current));
   lua_pushstring(L, current);
   return 1;
 }
-
 int get_current_session(lua_State *L) {
   lua_pushinteger(L, (lua_Integer)current_session);
   return 1;
@@ -638,6 +722,7 @@ void register_c_functions(lua_State *L) {
   lua_pushcfunction(L, &func);                                                 \
   lua_setfield(L, -2, name)
   // 注册每个 C 函数到 Lua 表中
+  REG_FUNC(L, get_context, "get_context");
   REG_FUNC(L, setup_rime, "setup_rime");
   REG_FUNC(L, init_rime, "init_rime");
   REG_FUNC(L, synchronize, "synchronize");
@@ -689,6 +774,8 @@ void register_c_functions(lua_State *L) {
 extern "C" {
 #ifdef MODULE
 LIBRIMEAC_API int luaopen_librimeac(lua_State *L) {
+  rime = rime_get_api();
+  assert(rime);
   l = L;
   register_c_functions(l);
 #else
@@ -702,6 +789,8 @@ int main(int argc, char *argv[]) {
       return 1;
     }
   }
+  rime = rime_get_api();
+  assert(rime);
   l = luaL_newstate();
   init_env(l);
   luaL_openlibs(l);
