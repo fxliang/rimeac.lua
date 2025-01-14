@@ -121,6 +121,20 @@ rimeac.print_session()
 rimeac.commit_composition(2)
 rimeac.print_session()
 
+-- sample to use rimeac.get_context
+rimeac.simulate_keys("ceshi")
+local commit, status, context = rimeac.get_context()
+print("commit: " .. tostring(commit))
+print("status: ")
+for k, v in pairs(status) do
+  print("status." .. k .. ": " .. tostring(v))
+end
+print("candidates: ")
+for _, v in ipairs(context.menu.candidates) do
+  print(v.label .. " " .. v.text .. " " .. v.comment)
+end
+rimeac.clear_composition()
+
 print("call commit_composition_sid")
 rimeac.simulate_keys("ceshi")
 rimeac.print_session()

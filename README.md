@@ -70,9 +70,9 @@ run with rimeac.lua
 local BIT = math.maxinteger > 2^31 and 16 or 8
 -- session_id format
 local PFORMAT = "%0" .. BIT .. "X"
-function on_message(obj, id, msg_type, msg_value)
+function on_message(obj, session_id, msg_type, msg_value)
   local msg = "lua > message: ["..PFORMAT.."] [%s] %s"
-  print(msg:format(rimeac.current_session, msg_type, msg_value))
+  print(msg:format(session_id, msg_type, msg_value))
   local state_label = rimeac.get_state_label(msg_type, msg_value)
   if msg_type == "option" then
     local option_name = msg_value:sub(1, 1) == "!" and msg_value:sub(2) or msg_value
@@ -151,6 +151,20 @@ rimeac.print_session()
 rimeac.commit_composition(2)
 rimeac.print_session()
 
+-- sample to use rimeac.get_context
+rimeac.simulate_keys("ceshi")
+local commit, status, context = rimeac.get_context()
+print("commit: " .. tostring(commit))
+print("status: ")
+for k, v in pairs(status) do
+  print("status." .. k .. ": " .. tostring(v))
+end
+print("candidates: ")
+for _, v in ipairs(context.menu.candidates) do
+  print(v.label .. " " .. v.text .. " " .. v.comment)
+end
+rimeac.clear_composition()
+
 print("call commit_composition_sid")
 rimeac.simulate_keys("ceshi")
 rimeac.print_session()
@@ -190,22 +204,46 @@ rimeac.destroy_sessions()
 --- rimeac.finalize_rime() no params
 rimeac.finalize_rime()
 
-print("script ends!")
+-- export user dict demo
+rimeac.initialize()
+if rimeac.export_user_dict("luna_pinyin", "./luna_pinyin_export.txt") then
+  print('export user dict luna_pinyin to ./luna_pinyin_export.txt done')
+else
+  print('export user dict luna_pinyin to ./luna_pinyin_export.txt failed')
+end
+rimeac.finalize()
 
+-- import user dict demo
+rimeac.initialize()
+if rimeac.import_user_dict("luna_pinyin", "./luna_pinyin_export.txt") then
+  print('import user dict luna_pinyin from ./luna_pinyin_export.txt done')
+else
+  print('import user dict luna_pinyin from ./luna_pinyin_export.txt failed')
+end
+rimeac.finalize()
+
+rimeac.initialize()
+if rimeac.backup_user_dict("luna_pinyin") then
+  print('backup luna_pinyin done')
+else
+  print('backup luna_pinyin failed')
+end
+rimeac.finalize()
+
+print("script ends!")
 ```
 
 run with lua
 
 ```lua
-
 -------------------------------------------------------------------------------
 -- bit width
 local BIT = math.maxinteger > 2^31 and 16 or 8
 -- session_id format
 local PFORMAT = "%0" .. BIT .. "X"
-function on_message(obj, id, msg_type, msg_value)
+function on_message(obj, session_id, msg_type, msg_value)
   local msg = "lua > message: ["..PFORMAT.."] [%s] %s"
-  print(msg:format(rimeac.current_session, msg_type, msg_value))
+  print(msg:format(session_id, msg_type, msg_value))
   local state_label = rimeac.get_state_label(msg_type, msg_value)
   if msg_type == "option" then
     local option_name = msg_value:sub(1, 1) == "!" and msg_value:sub(2) or msg_value
@@ -321,6 +359,20 @@ rimeac.print_session()
 rimeac.commit_composition(2)
 rimeac.print_session()
 
+-- sample to use rimeac.get_context
+rimeac.simulate_keys("ceshi")
+local commit, status, context = rimeac.get_context()
+print("commit: " .. tostring(commit))
+print("status: ")
+for k, v in pairs(status) do
+  print("status." .. k .. ": " .. tostring(v))
+end
+print("candidates: ")
+for _, v in ipairs(context.menu.candidates) do
+  print(v.label .. " " .. v.text .. " " .. v.comment)
+end
+rimeac.clear_composition()
+
 print("call commit_composition_sid")
 rimeac.simulate_keys("ceshi")
 rimeac.print_session()
@@ -362,6 +414,4 @@ rimeac.finalize_rime()
 
 rimeac.finalize_env()
 print("script ends!")
-
-
 ```
