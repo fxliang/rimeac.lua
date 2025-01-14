@@ -36,7 +36,7 @@ unsigned int codepage;
 lua_State *l;
 RimeApi *rime = nullptr;
 SessionsMap sessions_map;
-RimeSessionId current_session;
+RimeSessionId current_session = 0;
 
 inline void PUSH_STRING_TABLE(lua_State *L, const char *data,
                               const char *name) {
@@ -487,9 +487,10 @@ RimeSessionId get_session_c(int index) {
   else
     return 0;
 }
-// without parameters in lua
+// without parameters in lua to get current_session
+// with index > 0 to get session_id at the index
 int get_session(lua_State *L) {
-  lua_Integer index = lua_tointeger(L, 1);
+  lua_Integer index = lua_gettop(L) ? lua_tointeger(L, 1) : 0;
   auto id = get_session_c((int)index);
   lua_pushinteger(L, (lua_Integer)id);
   return 1;
@@ -760,9 +761,6 @@ void register_c_functions(lua_State *L) {
   REG_FUNC(L, get_index_of_current_session, "get_index_of_current_session");
   REG_FUNC(L, get_index_of_session, "get_index_of_session");
   REG_FUNC(L, get_state_label, "get_state_label");
-  lua_pushstring(L, "current_session");
-  lua_pushinteger(L, (lua_Integer)current_session);
-  lua_settable(L, -3);
 #ifdef MODULE
   REG_FUNC(L, init_env, "init_env");
   REG_FUNC(L, finalize_env, "finalize_env");

@@ -3,9 +3,9 @@
 local BIT = math.maxinteger > 2^31 and 16 or 8
 -- session_id format
 local PFORMAT = "%0" .. BIT .. "X"
-function on_message(obj, id, msg_type, msg_value)
+function on_message(obj, session_id, msg_type, msg_value)
   local msg = "lua > message: ["..PFORMAT.."] [%s] %s"
-  print(msg:format(rimeac.current_session, msg_type, msg_value))
+  print(msg:format(session_id, msg_type, msg_value))
   local state_label = rimeac.get_state_label(msg_type, msg_value)
   if msg_type == "option" then
     local option_name = msg_value:sub(1, 1) == "!" and msg_value:sub(2) or msg_value
