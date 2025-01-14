@@ -11,7 +11,7 @@ extern "C" {
 #include <rime_levers_api.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
+#include <string>
 #include <vector>
 
 #ifdef _WIN32
