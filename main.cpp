@@ -769,9 +769,8 @@ void register_c_functions(lua_State *L) {
   lua_pop(L, 1);
 }
 
-extern "C" {
 #ifdef MODULE
-LIBRIMEAC_API int luaopen_librimeac(lua_State *L) {
+extern "C" LIBRIMEAC_API int luaopen_librimeac(lua_State *L) {
   rime = rime_get_api();
   assert(rime);
   l = L;
@@ -802,5 +801,4 @@ int main(int argc, char *argv[]) {
   finalize_env(l);
 #endif /* MODULE */
   return 0;
-}
 }
