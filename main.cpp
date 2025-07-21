@@ -13,6 +13,7 @@ extern "C" {
 #include <stdlib.h>
 #include <string>
 #include <vector>
+#include <cstring>
 
 #ifdef _WIN32
 #define LIBRIMEAC_API __declspec(dllexport)
