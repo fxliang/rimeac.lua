@@ -99,7 +99,8 @@ local function main_loop()
         print("Error processing key sequence: " .. input)
       end
     end
-    if input == "synchronize" then 
+    if input == "synchronize" then
+      rimeac.synchronize()
       rimeac.destroy_sessions()
       rimeac.finalize_rime()
       input = ""
