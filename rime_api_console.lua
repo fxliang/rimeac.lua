@@ -89,18 +89,20 @@ local function main_loop()
     elseif input == "reload" then
       rimeac.destroy_sessions()
       rimeac.finalize_rime()
+      input = ""
       main_loop()
     end
     if not execute_special_command(input) then
       if rimeac.simulate_keys(input) then
         rimeac.print_session()
-      else
+      elseif input and input ~= "" then
         print("Error processing key sequence: " .. input)
       end
     end
     if input == "synchronize" then 
       rimeac.destroy_sessions()
       rimeac.finalize_rime()
+      input = ""
       main_loop()
     end
   end
