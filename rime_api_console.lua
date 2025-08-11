@@ -69,8 +69,6 @@ local function execute_special_command(line)
     end
     print("current schema: " .. schema)
     return true
-  elseif line == "synchronize" then
-    return rimeac.synchronize()
   end
   return false
 end
@@ -92,19 +90,19 @@ local function main_loop()
       input = ""
       main_loop()
     end
-    if not execute_special_command(input) then
-      if rimeac.simulate_keys(input) then
-        rimeac.print_session()
-      elseif input and input ~= "" then
-        print("Error processing key sequence: " .. input)
-      end
-    end
     if input == "synchronize" then
       rimeac.synchronize()
       rimeac.destroy_sessions()
       rimeac.finalize_rime()
       input = ""
       main_loop()
+    end
+    if not execute_special_command(input) then
+      if rimeac.simulate_keys(input) then
+        rimeac.print_session()
+      elseif input and input ~= "" then
+        print("Error processing key sequence: " .. input)
+      end
     end
   end
   rimeac.destroy_sessions()
