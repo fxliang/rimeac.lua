@@ -4,6 +4,7 @@ extern "C" {
 #include <lualib.h>
 }
 #include <cassert>
+#include <cstring>
 #include <filesystem>
 #include <iostream>
 #include <map>
@@ -13,7 +14,6 @@ extern "C" {
 #include <stdlib.h>
 #include <string>
 #include <vector>
-#include <cstring>
 
 #ifdef _WIN32
 #define LIBRIMEAC_API __declspec(dllexport)
@@ -39,23 +39,23 @@ RimeApi *rime = nullptr;
 SessionsMap sessions_map;
 RimeSessionId current_session = 0;
 
-inline void PUSH_STRING_TABLE(lua_State *L, const char *data,
+void PUSH_STRING_TABLE(lua_State *L, const char *data,
                               const char *name) {
   lua_pushstring(L, name);
   lua_pushstring(L, data);
   lua_settable(L, -3);
 }
-inline void PUSH_INT_TABLE(lua_State *L, const int data, const char *name) {
+void PUSH_INT_TABLE(lua_State *L, const int data, const char *name) {
   lua_pushstring(L, name);
   lua_pushinteger(L, data);
   lua_settable(L, -3);
 }
-inline void PUSH_BOOL_TABLE(lua_State *L, const bool data, const char *name) {
+void PUSH_BOOL_TABLE(lua_State *L, const bool data, const char *name) {
   lua_pushstring(L, name);
   lua_pushboolean(L, data);
   lua_settable(L, -3);
 }
-inline void PUSH_NIL_TABLE(lua_State *L, const char *name) {
+void PUSH_NIL_TABLE(lua_State *L, const char *name) {
   lua_pushstring(L, name);
   lua_pushnil(L);
   lua_settable(L, -3);
@@ -338,43 +338,23 @@ int finalize_rime(lua_State *L) {
 }
 int simulate_keys(lua_State *L) {
   const char *keys = lua_tostring(L, 1);
-  if (!rime) {
-    fprintf(stderr, "Please init rime first!\n");
-    lua_pushboolean(L, false);
-    return 1;
-  }
-  // printf("simulate keys on session: %p, %s\n", (void*)current_session, keys);
   auto ret = rime->simulate_key_sequence(current_session, keys);
   lua_pushboolean(L, ret);
   return 1;
 }
 int select_schema(lua_State *L) {
   const char *schema_id = lua_tostring(L, 1);
-  if (!rime) {
-    fprintf(stderr, "Please init rime first!\n");
-    lua_pushboolean(L, false);
-    return 1;
-  }
   auto ret = rime->select_schema(current_session, schema_id);
   lua_pushboolean(L, ret);
   return 1;
 }
 int set_option(lua_State *L) {
-  if (!rime) {
-    fprintf(stderr, "Please init rime first!\n");
-    return 0;
-  }
   const char *option_name = lua_tostring(L, 1);
   bool value = lua_toboolean(L, 2);
   rime->set_option(current_session, option_name, value);
   return 0;
 }
 int get_option(lua_State *L) {
-  if (!rime) {
-    fprintf(stderr, "Please init rime first!\n");
-    lua_pushboolean(L, false);
-    return 1;
-  }
   const char *option_name = lua_tostring(L, 1);
   auto ret = rime->get_option(current_session, option_name);
   lua_pushboolean(L, ret);
@@ -382,11 +362,6 @@ int get_option(lua_State *L) {
 }
 int select_candidate(lua_State *L) {
   auto index = lua_tointeger(L, 1);
-  if (!rime) {
-    fprintf(stderr, "Please init rime first!\n");
-    lua_pushboolean(L, false);
-    return 1;
-  }
   auto ret = (index > 0) && rime->select_candidate_on_current_page(
                                 current_session, ((size_t)index - 1));
   lua_pushboolean(L, ret);
@@ -394,11 +369,6 @@ int select_candidate(lua_State *L) {
 }
 int delete_candidate_on_current_page(lua_State *L) {
   auto index = lua_tointeger(L, 1);
-  if (!rime) {
-    fprintf(stderr, "Please init rime first!\n");
-    lua_pushboolean(L, false);
-    return 1;
-  }
   auto ret = (index > 0) && rime->delete_candidate_on_current_page(
                                 current_session, ((size_t)index - 1));
   lua_pushboolean(L, ret);
@@ -406,11 +376,6 @@ int delete_candidate_on_current_page(lua_State *L) {
 }
 int delete_candidate(lua_State *L) {
   auto index = lua_tointeger(L, 1);
-  if (!rime) {
-    fprintf(stderr, "Please init rime first!\n");
-    lua_pushboolean(L, false);
-    return 1;
-  }
   auto ret = (index > 0) &&
              rime->delete_candidate(current_session, ((size_t)index - 1));
   lua_pushboolean(L, ret);
@@ -428,11 +393,6 @@ int print_sessions(lua_State *L) {
   return 0;
 }
 int add_session(lua_State *L) {
-  if (!rime) {
-    fprintf(stderr, "Please init rime first!\n");
-    lua_pushboolean(L, false);
-    return 1;
-  }
   RimeSessionId id = rime->create_session();
   if (!id) {
     fprintf(stderr, "Error creating new rime session.\n");
@@ -448,10 +408,6 @@ int add_session(lua_State *L) {
   return 1;
 }
 int destroy_sessions(lua_State *L) {
-  if (!rime) {
-    fprintf(stderr, "Please init rime first!\n");
-    return 0;
-  }
   for (const auto &s : sessions_map) {
     printf("destroy session: %p\n", (void *)s.second);
     rime->destroy_session(s.second);
@@ -460,10 +416,6 @@ int destroy_sessions(lua_State *L) {
   return 0;
 }
 int kill_session(lua_State *L) {
-  if (!rime) {
-    fprintf(stderr, "Please init rime first!\n");
-    return 0;
-  }
   auto id = lua_tointeger(L, 1);
   auto it = sessions_map.find((int)id);
   if (it == sessions_map.end()) {
@@ -532,11 +484,6 @@ int get_index_of_session(lua_State *L) {
 }
 // with parameter session_id in lua
 int commit_composition_sid(lua_State *L) {
-  if (!rime) {
-    fprintf(stderr, "Please init rime first!\n");
-    lua_pushboolean(L, false);
-    return 1;
-  }
   lua_Integer sid = lua_tointeger(L, 1);
   auto ret = rime->commit_composition((RimeSessionId)sid);
   lua_pushboolean(L, ret);
@@ -544,10 +491,6 @@ int commit_composition_sid(lua_State *L) {
 }
 // with parameter session_id in lua
 int clear_composition_sid(lua_State *L) {
-  if (!rime) {
-    fprintf(stderr, "Please init rime first!\n");
-    return 0;
-  }
   lua_Integer sid = lua_tointeger(L, 1);
   rime->clear_composition((RimeSessionId)sid);
   return 0;
@@ -556,20 +499,16 @@ int clear_composition_sid(lua_State *L) {
 // current_session
 int commit_composition(lua_State *L) {
   bool ret = false;
-  if (!rime) {
-    fprintf(stderr, "Please init rime first!\n");
-  } else {
-    int n = lua_gettop(L);
-    if (!n)
-      ret = rime->commit_composition(current_session);
-    else {
-      int idx = (int)lua_tointeger(L, 1);
-      auto id = get_session_c((int)idx);
-      if (id)
-        ret = rime->commit_composition((RimeSessionId)id);
-      else
-        printf("Error: specific index %d doesn't match any session.\n", idx);
-    }
+  int n = lua_gettop(L);
+  if (!n)
+    ret = rime->commit_composition(current_session);
+  else {
+    int idx = (int)lua_tointeger(L, 1);
+    auto id = get_session_c((int)idx);
+    if (id)
+      ret = rime->commit_composition((RimeSessionId)id);
+    else
+      printf("Error: specific index %d doesn't match any session.\n", idx);
   }
   lua_pushboolean(L, ret);
   return 1;
@@ -577,20 +516,16 @@ int commit_composition(lua_State *L) {
 // with parameter session index in lua, or without parameters for
 // current_session
 int clear_composition(lua_State *L) {
-  if (!rime) {
-    fprintf(stderr, "Please init rime first!\n");
-  } else {
-    int n = lua_gettop(L);
-    if (!n)
-      rime->clear_composition(current_session);
-    else {
-      int idx = (int)lua_tointeger(L, 1);
-      auto id = get_session_c((int)idx);
-      if (id)
-        rime->clear_composition((RimeSessionId)id);
-      else
-        printf("Error: specific index %d doesn't match any session.\n", idx);
-    }
+  int n = lua_gettop(L);
+  if (!n)
+    rime->clear_composition(current_session);
+  else {
+    int idx = (int)lua_tointeger(L, 1);
+    auto id = get_session_c((int)idx);
+    if (id)
+      rime->clear_composition((RimeSessionId)id);
+    else
+      printf("Error: specific index %d doesn't match any session.\n", idx);
   }
   return 0;
 }
